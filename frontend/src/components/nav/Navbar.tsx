@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -48,6 +48,7 @@ export function Navbar({ config }: { config?: any }) {
   if (socials.github?.enabled && socials.github?.url) activeSocials.push({ href: socials.github.url, icon: GithubIcon, label: "GitHub" });
   if (socials.linkedin?.enabled && socials.linkedin?.url) activeSocials.push({ href: socials.linkedin.url, icon: LinkedinIcon, label: "LinkedIn" });
   if (socials.x?.enabled && socials.x?.url) activeSocials.push({ href: socials.x.url, icon: XSocialIcon, label: "X" });
+
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -70,6 +71,17 @@ export function Navbar({ config }: { config?: any }) {
       document.body.style.overflow = "";
     }
     return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
+
+  // Handle Escape key to close menu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    if (menuOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
 
   return (
@@ -166,17 +178,17 @@ export function Navbar({ config }: { config?: any }) {
 
           {/* Mobile hamburger */}
           <button
-            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-md text-text-primary hover:text-accent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            onClick={() => setMenuOpen((v) => !v)}
+            className="lg:hidden flex items-center justify-center w-11 h-11 rounded-lg text-text-primary hover:text-accent hover:bg-white/[0.04] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            onClick={() => setMenuOpen(true)}
             aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-label="Open navigation menu"
           >
-            {menuOpen ? <CloseIcon size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
+            <Menu size={22} strokeWidth={1.5} />
           </button>
         </div>
       </motion.header>
 
-      {/* Mobile Menu Overlay */}
+      {/* Fullscreen Mobile Menu Overlay & Drawer */}
       <MobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -236,124 +248,154 @@ interface MobileMenuProps {
 function MobileMenu({ open, onClose, pathname, navLinks, activeSocials, hasResume, resumeUrl, resume }: MobileMenuProps) {
   const shouldReduce = useReducedMotion();
 
-  const overlayVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 },
-  };
-
-  const menuVariants = {
-    hidden: { x: "100%" },
-    visible: { x: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
-    exit: { x: "100%", transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] } },
-  };
-
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Fullscreen Backdrop */}
           <motion.div
             key="mobile-backdrop"
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            variants={shouldReduce ? {} : overlayVariants}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[190] bg-bg/60 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-[990] bg-[#0a0a0a]/80 backdrop-blur-md lg:hidden"
             onClick={onClose}
             aria-hidden
           />
 
-          {/* Menu panel */}
-          <motion.nav
-            key="mobile-menu"
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            variants={shouldReduce ? {} : (menuVariants as any)}
-            className="fixed top-0 right-0 bottom-0 z-[195] w-80 bg-bg-card border-l border-border flex flex-col lg:hidden"
-            aria-label="Mobile navigation"
+          {/* Fullscreen Independent Mobile Drawer Panel */}
+          <motion.aside
+            key="mobile-drawer"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-[1000] w-full h-[100dvh] bg-bg flex flex-col lg:hidden overflow-y-auto overscroll-contain"
+            style={{
+              paddingTop: "env(safe-area-inset-top, 0px)",
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation menu"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <span className="font-display font-semibold text-[13px] tracking-widest uppercase text-text-primary">
-                Menu
-              </span>
+            {/* Independent Mobile Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 shrink-0">
+              <Link
+                href="/"
+                onClick={onClose}
+                className="flex items-center gap-3 group"
+                aria-label="Gautam Rajpurohit - Home"
+              >
+                <span className="w-2 h-2 rounded-full bg-accent" />
+                <span className="font-display font-semibold text-[13px] tracking-widest uppercase text-text-primary">
+                  Gautam Rajpurohit
+                </span>
+              </Link>
+
               <button
                 onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+                className="w-11 h-11 flex items-center justify-center rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                 aria-label="Close menu"
               >
-                <CloseIcon size={18} strokeWidth={1.5} />
+                <CloseIcon size={20} strokeWidth={1.5} />
               </button>
             </div>
 
-            {/* Nav links */}
-            <ul className="space-y-1 mb-8 flex-1 flex flex-col justify-center" aria-label="Mobile navigation">
-              {navLinks.map(({ href, label }, i: number) => {
-                const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
-                return (
-                  <motion.li
-                    key={href}
-                    initial={shouldReduce ? {} : { opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 + i * 0.05 }}
-                  >
-                    <Link
+            {/* Navigation Section */}
+            <div className="flex-1 flex flex-col justify-center px-6 py-8">
+              <div className="mb-3 px-3">
+                <span className="text-[10px] font-mono text-accent uppercase tracking-[0.2em]">
+                  Navigation
+                </span>
+              </div>
+
+              <nav aria-label="Mobile site navigation">
+                <ul className="space-y-1.5">
+                  {navLinks.map(({ href, label }, i: number) => {
+                    const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+                    return (
+                      <motion.li
+                        key={href}
+                        initial={shouldReduce ? {} : { opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.25, delay: 0.05 + i * 0.03 }}
+                      >
+                        <Link
+                          href={href}
+                          onClick={onClose}
+                          className={cn(
+                            "flex items-center justify-between px-4 py-3.5 rounded-xl text-base font-display tracking-wide transition-all",
+                            isActive
+                              ? "bg-accent/10 text-accent font-semibold border border-accent/25"
+                              : "text-text-secondary hover:text-text-primary hover:bg-white/[0.04] border border-transparent"
+                          )}
+                          aria-current={isActive ? "page" : undefined}
+                        >
+                          <span>{label}</span>
+                          {isActive ? (
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                          ) : (
+                            <ArrowUpRight size={15} className="text-text-tertiary opacity-40" />
+                          )}
+                        </Link>
+                      </motion.li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            </div>
+
+            {/* Dedicated Drawer Footer */}
+            <div className="mt-auto border-t border-border/80 px-6 py-6 bg-bg-card/40 backdrop-blur-sm shrink-0 space-y-4">
+              {/* Social Links Row */}
+              {activeSocials.length > 0 && (
+                <div className="flex items-center gap-4 pb-2 border-b border-white/[0.04]">
+                  <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-widest mr-2">
+                    Connect
+                  </span>
+                  {activeSocials.map(({ href, icon: Icon, label }) => (
+                    <a
+                      key={href}
                       href={href}
-                      className={cn(
-                        "flex items-center justify-between px-6 py-4 text-lg font-display tracking-wide transition-colors",
-                        isActive
-                          ? "bg-accent/10 text-text-primary"
-                          : "text-text-secondary hover:bg-bg-alt hover:text-text-primary"
-                      )}
-                      aria-current={isActive ? "page" : undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={label}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
                     >
-                      {label}
-                      {isActive && <ArrowUpRight className="w-5 h-5 text-accent opacity-50" />}
-                    </Link>
-                  </motion.li>
-                );
-              })}
-            </ul>
-            <div className="pt-6 border-t border-border mt-auto p-6">
-              <div className="flex items-center gap-4 mb-6">
-                {activeSocials.map(({ href, icon: Icon, label }) => (
+                      <Icon size={16} />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* CTA Buttons */}
+              <div className="space-y-3">
+                {hasResume && (
                   <a
-                    key={href}
-                    href={href}
+                    href={resumeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={label}
-                    className="text-text-secondary hover:text-text-primary transition-colors duration-200"
+                    onClick={onClose}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-pill border border-border hover:border-primary/50 text-text-secondary hover:text-text-primary text-[12px] font-mono tracking-wider uppercase transition-colors"
                   >
-                    <Icon size={18} />
+                    {resume?.label || "View Resume"}
+                    <ArrowUpRight size={13} strokeWidth={2} />
                   </a>
-                ))}
-              </div>
-              {hasResume && (
-                <a
-                  href={resumeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                )}
+
+                <Link
+                  href="/projects"
                   onClick={onClose}
-                  className="flex items-center justify-center gap-2 w-full py-3 mb-3 rounded-pill border border-border text-text-primary text-[13px] font-semibold tracking-wide uppercase hover:border-primary/50 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-pill bg-accent text-bg text-[12px] font-bold tracking-wider uppercase hover:bg-accent/90 transition-colors shadow-lg shadow-accent/10"
                 >
-                  {resume?.label || "View Resume"}
-                  <ArrowUpRight size={14} />
-                </a>
-              )}
-              <Link
-                href="/projects"
-                onClick={onClose}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-pill bg-accent text-bg text-[13px] font-semibold tracking-wide uppercase"
-              >
-                View Projects
-                <ArrowUpRight size={13} />
-              </Link>
+                  View Projects
+                  <ArrowUpRight size={14} strokeWidth={2.5} />
+                </Link>
+              </div>
             </div>
-          </motion.nav>
+          </motion.aside>
         </>
       )}
     </AnimatePresence>

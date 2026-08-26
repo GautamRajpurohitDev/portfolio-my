@@ -402,6 +402,8 @@ function RoadmapStats({ phases }: { phases: RoadmapPhase[] }) {
   );
 }
 
+import { PublicPageShell } from "@/components/layout/PublicPageShell";
+
 // ── Main Client Page ──────────────────────────────────────────
 
 export function RoadmapClientPage({ initialData, currentlyLearning }: Props) {
@@ -409,13 +411,13 @@ export function RoadmapClientPage({ initialData, currentlyLearning }: Props) {
 
   if (!initialData) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
+      <PublicPageShell className="flex items-center justify-center">
+        <div className="text-center space-y-4 py-32">
           <Map size={40} className="mx-auto text-white/20" />
           <p className="text-white/40 text-sm">Roadmap not yet configured.</p>
           <p className="text-white/20 text-xs font-mono">Run the seed script or add phases in /admin/roadmap</p>
         </div>
-      </main>
+      </PublicPageShell>
     );
   }
 
@@ -435,140 +437,150 @@ export function RoadmapClientPage({ initialData, currentlyLearning }: Props) {
   const inProgressPhase = phases.find((p) => p.status === "in-progress");
 
   return (
-    <main className="min-h-screen">
+    <PublicPageShell>
       {/* ── Hero ──────────────────────────────────────────── */}
-      <section className="public-page-header !border-b-0 !bg-transparent px-6 sm:px-8 max-w-5xl mx-auto">
-        {/* Eyebrow */}
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex items-center gap-2 mb-4"
-        >
-          <Map size={13} className="text-accent" />
-          <span className="public-page-header-eyebrow !mb-0">02 / Roadmap</span>
-        </motion.div>
+      <header className="public-page-header">
+        <div className="container">
+          <div className="max-w-4xl">
+            {/* Eyebrow */}
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex items-center gap-2 mb-4"
+            >
+              <Map size={13} className="text-accent" />
+              <span className="public-page-header-eyebrow !mb-0">02 / Roadmap</span>
+            </motion.div>
 
-        {/* Main title */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="mb-6"
-        >
-          <h1 className="text-[clamp(36px,5vw,72px)] font-black tracking-[-0.02em] leading-[0.95] text-[#f0ede8] uppercase">
-            Programming<br />
-            <span className="text-[#e8c547]">Mastery</span>
-          </h1>
-        </motion.div>
+            {/* Main title */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="mb-4 sm:mb-5"
+            >
+              <h1 className="public-page-header-title">
+                Programming<br />
+                <span className="text-accent">Mastery</span>
+              </h1>
+            </motion.div>
 
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="text-base text-white/40 max-w-xl leading-relaxed mb-10"
-        >
-          A structured path from programming fundamentals to software engineering,
-          systems, cloud, cybersecurity and AI.{" "}
-          <span className="text-white/25">Building depth one layer at a time.</span>
-        </motion.p>
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="public-page-header-subtitle mb-8"
+            >
+              A structured path from programming fundamentals to software engineering,
+              systems, cloud, cybersecurity and AI.{" "}
+              <span className="text-text-tertiary">Building depth one layer at a time.</span>
+            </motion.p>
 
-        {/* Currently learning banner */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="mb-10"
-        >
-          <LearningBanner
-            currentlyLearning={currentlyLearning}
-            activePhase={inProgressPhase}
-            nextPhase={phases.find((p) => p.status === "up-next" || p.status === "not-started" && p.order > (inProgressPhase?.order || -1))}
-          />
-        </motion.div>
+            {/* Currently learning banner */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="mb-8"
+            >
+              <LearningBanner
+                currentlyLearning={currentlyLearning}
+                activePhase={inProgressPhase}
+                nextPhase={phases.find((p) => p.status === "up-next" || (p.status === "not-started" && p.order > (inProgressPhase?.order || -1)))}
+              />
+            </motion.div>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-          className="border-t border-white/[0.06] pt-6"
-        >
-          <RoadmapStats phases={phases} />
-        </motion.div>
-      </section>
+            {/* Stats */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="border-t border-border/80 pt-6"
+            >
+              <RoadmapStats phases={phases} />
+            </motion.div>
+          </div>
+        </div>
+      </header>
 
       {/* ── Filter bar ────────────────────────────────────── */}
-      <div className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/[0.05] px-6 py-3">
-        <div className="max-w-5xl mx-auto flex items-center gap-2 overflow-x-auto">
-          {[
-            { value: "all",         label: "All Phases" },
-            { value: "in-progress", label: "Active" },
-            { value: "up-next",     label: "Up Next" },
-            { value: "completed",   label: "Completed" },
-            { value: "not-started", label: "Planned" },
-          ].map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setFilterStatus(value as typeof filterStatus)}
-              className={`flex-shrink-0 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all duration-150
-                ${filterStatus === value
-                  ? "bg-[#e8c547]/15 text-[#e8c547] border border-[#e8c547]/25"
-                  : "text-white/30 hover:text-white/50 border border-white/[0.06] hover:border-white/[0.12]"
-                }
-              `}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="sticky top-[72px] md:top-[80px] z-40 bg-bg/90 backdrop-blur-xl border-b border-border py-3">
+        <div className="container">
+          <div className="max-w-4xl flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            {[
+              { value: "all",         label: "All Phases" },
+              { value: "in-progress", label: "Active" },
+              { value: "up-next",     label: "Up Next" },
+              { value: "completed",   label: "Completed" },
+              { value: "not-started", label: "Planned" },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setFilterStatus(value as typeof filterStatus)}
+                className={`flex-shrink-0 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all duration-150
+                  ${filterStatus === value
+                    ? "bg-accent/15 text-accent border border-accent/25"
+                    : "text-text-secondary hover:text-text-primary border border-border hover:border-border-hover"
+                  }
+                `}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ── Phase Cards ───────────────────────────────────── */}
-      <section className="px-6 sm:px-8 pb-24 max-w-5xl mx-auto">
-        {/* Section label */}
-        <div className="flex items-center gap-3 mt-10 mb-6">
-          <div className="h-px flex-1 bg-white/[0.05]" />
-          <span className="text-[10px] font-mono text-white/20 uppercase tracking-[0.2em]">
-            {filteredPhases.length} phase{filteredPhases.length !== 1 ? "s" : ""}
-          </span>
-          <div className="h-px flex-1 bg-white/[0.05]" />
-        </div>
+      <section className="py-12 md:py-16">
+        <div className="container">
+          <div className="max-w-4xl">
+            {/* Section label */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-[0.2em]">
+                {filteredPhases.length} phase{filteredPhases.length !== 1 ? "s" : ""}
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
 
-        <div className="space-y-3">
-          {filteredPhases.map((phase, idx) => {
-            const { domains: pd, topics: pt } = getPhaseProps(phase);
-            return (
-              <PhaseCard
-                key={phase._id}
-                phase={phase}
-                domains={pd}
-                topics={pt}
-                defaultExpanded={phase.status === "in-progress"}
-                index={idx}
-              />
-            );
-          })}
-        </div>
+            <div className="space-y-4">
+              {filteredPhases.map((phase, idx) => {
+                const { domains: pd, topics: pt } = getPhaseProps(phase);
+                return (
+                  <PhaseCard
+                    key={phase._id}
+                    phase={phase}
+                    domains={pd}
+                    topics={pt}
+                    defaultExpanded={phase.status === "in-progress"}
+                    index={idx}
+                  />
+                );
+              })}
+            </div>
 
-        {filteredPhases.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Target size={40} className="text-white/15 mb-4" />
-            <p className="text-white/30 text-sm">No phases match this filter</p>
+            {filteredPhases.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <Target size={40} className="text-text-tertiary mb-4" />
+                <p className="text-text-secondary text-sm">No phases match this filter</p>
+              </div>
+            )}
+
+            {/* Bottom note */}
+            <div className="mt-16 pt-8 border-t border-border text-center">
+              <p className="text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                This roadmap reflects my planned learning system.
+              </p>
+              <p className="text-[10px] font-mono text-text-tertiary mt-1">
+                Planned ≠ Completed. Progress is tracked and updated from the CMS.
+              </p>
+            </div>
           </div>
-        )}
-
-        {/* Bottom note */}
-        <div className="mt-16 pt-8 border-t border-white/[0.05] text-center">
-          <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
-            This roadmap reflects my planned learning system.
-          </p>
-          <p className="text-[10px] font-mono text-white/15 mt-1">
-            Planned ≠ Completed. Progress is tracked and updated from the CMS.
-          </p>
         </div>
       </section>
-    </main>
+    </PublicPageShell>
   );
 }
