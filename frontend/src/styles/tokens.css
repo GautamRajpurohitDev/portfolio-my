@@ -1,0 +1,131 @@
+/* ============================================================
+   DESIGN TOKENS — Gautam Rajpurohit Portfolio
+   All CSS custom properties for the design system.
+   ============================================================ */
+
+:root {
+  /* ── COLORS ─────────────────────────────────────────────── */
+
+  /* Backgrounds */
+  --color-bg:           #0a0a0a;
+  --color-bg-alt:       #111111;
+  --color-bg-card:      #161616;
+  --color-bg-elevated:  #1c1c1c;
+
+  /* Borders */
+  --color-border:       #1e1e1e;
+  --color-border-muted: #262626;
+  --color-border-hover: #333333;
+
+  /* Text */
+  --color-text-primary:   #f0ede8;
+  --color-text-secondary: #7a7773;
+  --color-text-tertiary:  #3d3a37;
+  --color-text-inverse:   #0a0a0a;
+
+  /* Accent — warm amber/gold */
+  --color-accent:       #e8c547;
+  --color-accent-muted: rgba(232, 197, 71, 0.12);
+  --color-accent-dim:   rgba(232, 197, 71, 0.06);
+
+  /* Status */
+  --color-success:      #4caf79;
+  --color-success-muted: rgba(76, 175, 121, 0.12);
+  --color-error:        #e85a4c;
+  --color-error-muted:  rgba(232, 90, 76, 0.12);
+  --color-warning:      #e8a847;
+  --color-info:         #4c9faf;
+
+  /* ── TYPOGRAPHY ──────────────────────────────────────────── */
+
+  --font-display: 'Clash Grotesk', 'Archivo', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* Type scale */
+  --type-display-2xl: clamp(72px, 10vw, 148px);
+  --type-display-xl:  clamp(56px, 7.5vw, 112px);
+  --type-display-lg:  clamp(40px, 5.5vw,  80px);
+  --type-display-md:  clamp(28px, 3.5vw,  52px);
+  --type-heading-xl:  clamp(22px, 2.2vw,  32px);
+  --type-heading-lg:  20px;
+  --type-heading-md:  18px;
+  --type-body-xl:     20px;
+  --type-body-lg:     18px;
+  --type-body-md:     16px;
+  --type-body-sm:     14px;
+  --type-meta:        11px;
+  --type-mono-sm:     12px;
+  --type-mono-md:     13px;
+
+  /* Letter spacing */
+  --tracking-tight:   -0.03em;
+  --tracking-snug:    -0.02em;
+  --tracking-normal:  0em;
+  --tracking-wide:    0.06em;
+  --tracking-wider:   0.1em;
+  --tracking-widest:  0.15em;
+
+  /* Line height */
+  --leading-none:     1;
+  --leading-tight:    1.1;
+  --leading-snug:     1.25;
+  --leading-normal:   1.5;
+  --leading-relaxed:  1.65;
+
+  /* ── SPACING (8px base) ──────────────────────────────────── */
+
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   24px;
+  --space-6:   32px;
+  --space-7:   48px;
+  --space-8:   64px;
+  --space-9:   96px;
+  --space-10:  128px;
+  --space-11:  160px;
+  --space-12:  240px;
+
+  /* Section padding */
+  --section-py: clamp(80px, 10vw, 160px);
+
+  /* Container */
+  --container-max:     1360px;
+  --container-px:      clamp(20px, 4vw, 48px);
+
+  /* ── BORDER RADIUS ───────────────────────────────────────── */
+
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-2xl:  32px;
+  --radius-pill: 999px;
+
+  /* ── SHADOWS ─────────────────────────────────────────────── */
+
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:   0 16px 48px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 40px rgba(232,197,71,0.08);
+
+  /* ── TRANSITIONS ─────────────────────────────────────────── */
+
+  --transition-micro:   150ms cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --transition-fast:    250ms cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --transition-normal:  350ms cubic-bezier(0.22, 1.0, 0.36, 1.0);
+  --transition-slow:    550ms cubic-bezier(0.22, 1.0, 0.36, 1.0);
+
+  /* ── Z-INDEX ─────────────────────────────────────────────── */
+
+  --z-base:    1;
+  --z-raised:  10;
+  --z-dropdown: 100;
+  --z-sticky:  200;
+  --z-modal:   300;
+  --z-toast:   400;
+  --z-cursor:  500;
+}

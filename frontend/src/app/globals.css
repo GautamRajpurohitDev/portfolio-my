@@ -1,0 +1,414 @@
+@import "tailwindcss";
+
+/* ── TAILWIND V4 THEME ───────────────────────────────────────── */
+
+@theme {
+  /* Backgrounds */
+  --color-bg:             #0a0a0a;
+  --color-bg-alt:         #111111;
+  --color-bg-card:        #161616;
+  --color-bg-elevated:    #1c1c1c;
+
+  /* Borders */
+  --color-border:         #1e1e1e;
+  --color-border-muted:   #262626;
+  --color-border-hover:   #333333;
+
+  /* Text */
+  --color-text-primary:   #f0ede8;
+  --color-text-secondary: #7a7773;
+  --color-text-tertiary:  #3d3a37;
+  --color-text-muted:     #3d3a37;
+  --color-text-inverse:   #0a0a0a;
+
+  /* Accent / Primary — same color, two names */
+  --color-accent:         #e8c547;
+  --color-primary:        #e8c547;
+
+  /* Status */
+  --color-success:        #4caf79;
+  --color-error:          #e85a4c;
+  --color-warning:        #e8a847;
+
+  /* Fonts */
+  --font-display:         'Clash Grotesk', system-ui, sans-serif;
+  --font-body:            'Inter', system-ui, sans-serif;
+  --font-mono:            'JetBrains Mono', monospace;
+  --font-clash:           'Clash Grotesk', system-ui, sans-serif;
+
+  /* Border radius */
+  --radius-pill:          999px;
+  --radius-lg:            16px;
+  --radius-md:            8px;
+  --radius-sm:            4px;
+  --radius-xs:            2px;
+}
+
+/* ── DESIGN TOKENS (CSS Custom Properties) ──────────────────── */
+
+:root {
+  /* Backgrounds */
+  --color-bg:             #0a0a0a;
+  --color-bg-alt:         #111111;
+  --color-bg-card:        #161616;
+  --color-bg-elevated:    #1c1c1c;
+
+  /* Borders */
+  --color-border:         #1e1e1e;
+  --color-border-muted:   #262626;
+  --color-border-hover:   #333333;
+
+  /* Text */
+  --color-text-primary:   #f0ede8;
+  --color-text-secondary: #7a7773;
+  --color-text-tertiary:  #3d3a37;
+  --color-text-inverse:   #0a0a0a;
+
+  /* Accent */
+  --color-accent:         #e8c547;
+  --color-accent-muted:   rgba(232, 197, 71, 0.12);
+  --color-accent-dim:     rgba(232, 197, 71, 0.06);
+
+  /* Status */
+  --color-success:        #4caf79;
+  --color-success-muted:  rgba(76, 175, 121, 0.12);
+  --color-error:          #e85a4c;
+  --color-error-muted:    rgba(232, 90, 76, 0.12);
+  --color-warning:        #e8a847;
+
+  /* Fonts */
+  --font-display: 'Clash Grotesk', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing (8px base) */
+  --space-1:  4px;   --space-2:  8px;   --space-3:  12px;
+  --space-4:  16px;  --space-5:  24px;  --space-6:  32px;
+  --space-7:  48px;  --space-8:  64px;  --space-9:  96px;
+  --space-10: 128px; --space-11: 160px; --space-12: 240px;
+
+  /* Container */
+  --container-max: 1360px;
+  --container-px:  clamp(20px, 4vw, 48px);
+  --section-py:    clamp(80px, 10vw, 160px);
+
+  /* Border radius */
+  --radius-xs:   2px;  --radius-sm:  4px;
+  --radius-md:   8px;  --radius-lg:  16px;
+  --radius-xl:  24px;  --radius-2xl: 32px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:   0 16px 48px rgba(0,0,0,0.6);
+
+  /* Transitions */
+  --transition-micro:   150ms cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --transition-fast:    250ms cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --transition-normal:  350ms cubic-bezier(0.22, 1.0, 0.36, 1.0);
+  --transition-slow:    550ms cubic-bezier(0.22, 1.0, 0.36, 1.0);
+
+  /* Z-index */
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100;
+  --z-sticky: 200; --z-modal: 300; --z-toast: 400; --z-cursor: 500;
+}
+
+/* ── GLOBAL RESET ─────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── TYPOGRAPHY UTILITIES ─────────────────────────────────── */
+
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); }
+
+.label-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* ── SELECTION ────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(232, 197, 71, 0.2);
+  color: #e8c547;
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #111111; }
+::-webkit-scrollbar-thumb { background: #333333; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #3d3a37; }
+
+/* ── FOCUS ────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── BASE ─────────────────────────────────────────────────── */
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; height: auto; display: block; }
+
+/* ── CONTAINER ────────────────────────────────────────────── */
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding-left: var(--container-px);
+  padding-right: var(--container-px);
+}
+
+/* ── SECTION ──────────────────────────────────────────────── */
+
+.section {
+  padding-top: var(--section-py);
+  padding-bottom: var(--section-py);
+}
+
+/* ── TAGS ─────────────────────────────────────────────────── */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  border: 1px solid #262626;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-card);
+  transition: border-color 250ms, color 250ms;
+}
+
+.tag:hover {
+  border-color: #333333;
+  color: var(--color-text-primary);
+}
+
+/* ── ADMIN INPUTS ─────────────────────────────────────────── */
+
+.admin-input {
+  width: 100%;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color 250ms;
+  outline: none;
+}
+
+.admin-input:focus { border-color: var(--color-accent); }
+.admin-input::placeholder { color: var(--color-text-tertiary); }
+
+.admin-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+/* ── ANIMATIONS ───────────────────────────────────────────── */
+
+@keyframes pulseAccent {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1;   }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── ADMIN GRAIN / TEXTURE ─────────────────────────────────── */
+
+/* Subtle noise grain overlay applied to admin shell */
+.admin-grain {
+  position: relative;
+}
+.admin-grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  opacity: 0.022;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+}
+
+/* Admin sidebar nav active indicator */
+.admin-nav-active {
+  position: relative;
+  color: var(--color-text-primary) !important;
+  background: rgba(232, 197, 71, 0.06) !important;
+}
+.admin-nav-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--color-accent);
+  border-radius: 0 2px 2px 0;
+}
+.admin-nav-active svg {
+  color: var(--color-accent) !important;
+}
+
+/* Admin skeleton shimmer */
+.admin-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.06) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+/* Status badge variants */
+.status-published {
+  background: rgba(76, 175, 121, 0.1);
+  color: #4caf79;
+  border-color: rgba(76, 175, 121, 0.2);
+}
+.status-draft {
+  background: rgba(122, 119, 115, 0.1);
+  color: #7a7773;
+  border-color: rgba(122, 119, 115, 0.2);
+}
+.status-featured {
+  background: rgba(232, 197, 71, 0.1);
+  color: #e8c547;
+  border-color: rgba(232, 197, 71, 0.2);
+}
+.status-idea      { background:rgba(122,119,115,.08); color:#7a7773; border-color:rgba(122,119,115,.15); }
+.status-progress  { background:rgba(96,165,250,.08);  color:#60a5fa; border-color:rgba(96,165,250,.15); }
+.status-completed { background:rgba(76,175,121,.08);  color:#4caf79; border-color:rgba(76,175,121,.15); }
+.status-archived  { background:rgba(239,68,68,.06);   color:#737373; border-color:rgba(115,115,115,.15); }
+.status-learning  { background:rgba(232,197,71,.08);  color:#e8c547; border-color:rgba(232,197,71,.15); }
+.status-familiar  { background:rgba(96,165,250,.08);  color:#60a5fa; border-color:rgba(96,165,250,.15); }
+.status-proficient{ background:rgba(52,211,153,.08);  color:#34d399; border-color:rgba(52,211,153,.15); }
+.status-advanced  { background:rgba(232,197,71,.08);  color:#e8c547; border-color:rgba(232,197,71,.15); }
+.status-planned   { background:rgba(122,119,115,.06); color:#555350; border-color:rgba(122,119,115,.1); }
+
+/* Timeline connector */
+.timeline-line {
+  position: relative;
+}
+.timeline-line::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 24px;
+  bottom: -12px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--color-border) 0%, transparent 100%);
+}
+
+/* Subtle card glow on hover */
+.card-hover-glow {
+  transition: border-color 200ms, box-shadow 200ms;
+}
+.card-hover-glow:hover {
+  border-color: rgba(232,197,71,0.2) !important;
+  box-shadow: 0 0 0 1px rgba(232,197,71,0.06), 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* ── PUBLIC PAGE HEADER SYSTEM ────────────────────────────── */
+
+.public-page-header {
+  padding-top: clamp(130px, 12vw, 175px) !important;
+  padding-bottom: clamp(40px, 5vw, 64px) !important;
+  border-bottom: 1px solid var(--color-border);
+  background-color: rgba(17, 17, 17, 0.35);
+  position: relative;
+  width: 100%;
+}
+
+.public-page-header-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  display: block;
+  margin-bottom: 16px;
+}
+
+.public-page-header-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  line-height: 0.95;
+  font-size: clamp(36px, 5.5vw, 76px);
+  margin-bottom: 16px;
+}
+
+.public-page-header-subtitle {
+  font-family: var(--font-body);
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 640px;
+}
+
+/* ── HERO-SCOPED CURSOR OVERRIDE ──────────────────────────── */
+
+.hero-cursor-active,
+.hero-cursor-active * {
+  cursor: none !important;
+}
+
+/* ── REDUCED MOTION ───────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

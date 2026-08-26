@@ -1,0 +1,98 @@
+PROJECT WORKFLOW & DETAILED CHANGELOG
+=====================================
+
+Phase 1: Scaffolding & Setup - [COMPLETED]
+- Initialized Next.js 14 App Router project (`frontend/`)
+- Set up Tailwind CSS v4 design system
+  - Created `src/styles/tokens.css` for centralized design tokens (colors, fonts, radius)
+  - Configured `src/app/globals.css` with `@theme` block and global resets
+  - Removed outdated `tailwind.config.ts` to fully support v4
+- Configured Fonts
+  - Inter & JetBrains Mono (via Google Fonts in layout)
+  - Clash Grotesk (via Fontshare API)
+- Created TypeScript interfaces for all data models (`src/types/index.ts`)
+- Created Axios API client wrapper (`src/lib/api.ts`)
+
+Phase 2: Core Layouts, Navigation & Motion - [COMPLETED]
+- Framer Motion System setup
+  - Defined animation sequences and variants in `src/lib/motion.ts`
+  - Created reusable wrappers: `FadeIn`, `SlideUp`, `StaggerContainer`, `RevealText`, etc. (`src/components/motion/MotionPrimitives.tsx`)
+  - Created `PageTransition.tsx` for route animations
+- Navigation Components
+  - Built sticky `Navbar.tsx` with glass effect and responsive mobile drawer
+  - Built `Footer.tsx` with quick links and brand statement
+- Custom Icons
+  - Created `src/components/ui/SocialIcons.tsx` to host inline SVGs for GitHub, LinkedIn, and X (replacing missing lucide-react brand icons)
+- Global Layouts
+  - Root `layout.tsx` with font loading and Open Graph metadata
+  - Public `(public)/layout.tsx` to wrap public pages in Navbar/Footer
+
+Phase 3: Public Pages Development - [COMPLETED]
+- Built Core Sections (`src/components/portfolio/`):
+  - `HeroSection.tsx`: Orchestrated motion sequence, background grid, deco text
+  - `AboutSection.tsx`: 2-column editorial bio, metadata grid, areas exploring
+  - `CurrentlyLearningSection.tsx`: Animated progress bar, next-up roadmap
+  - `ProjectsPreviewSection.tsx`: Featured large card + standard cards
+  - `JourneyPreviewSection.tsx`: Journal entry cards with date formatting
+  - `MilestonesSection.tsx`: Vertical progress rail for achievements
+  - `ContactSection.tsx`: Zod/React-Hook-Form validated contact form with success states
+  - `SkillsSection.tsx`: Categorized skill tags with proficiency indicators
+- Assembled Pages (`src/app/(public)/`):
+  - `page.tsx` (Homepage): Stacked all primary sections
+  - `about/page.tsx`
+  - `projects/page.tsx`
+  - `skills/page.tsx`
+  - `journey/page.tsx`
+  - `contact/page.tsx`
+  - `milestones/page.tsx`
+- Routing Fixes
+  - Deleted default `src/app/page.tsx` to let `(public)/page.tsx` handle root route
+
+Phase 4: Backend & Database - [COMPLETED]
+- Initialized Express + TypeScript project in `backend/`
+- Created tsconfig.json with strict mode
+- Installed: express, mongoose, cors, helmet, cookie-parser, dotenv,
+  jsonwebtoken, bcryptjs, multer, zod, express-rate-limit, morgan
+- Created MongoDB connection utility (`src/lib/db.ts`) with singleton pattern
+- Created Mongoose models:
+  - `User.ts`: Admin user with bcrypt password field
+  - `Project.ts`: Full CMS fields + auto-slug on save
+  - `JourneyEntry.ts`: Structured learning log entry
+  - `ContentModels.ts`: Skill, Certificate, Milestone, Update (build log), Settings
+- Created Auth Middleware (`src/middleware/auth.ts`):
+  - JWT verification from HTTP-only cookies
+  - generateToken, setAuthCookie, clearAuthCookie helpers
+- Created Controllers:
+  - `authController.ts`: login, logout, getMe
+  - `projectsController.ts`: full CRUD with public/admin split
+  - `journeyController.ts`: full CRUD
+  - `skillsController.ts`: full CRUD
+  - `contentController.ts`: Certs, Milestones, Updates, Settings CRUD
+- Created Routes:
+  - `src/routes/auth.ts`
+  - `src/routes/projects.ts`
+  - `src/routes/journey.ts`
+  - `src/routes/content.ts` (skills, certs, milestones, updates, settings)
+- Created `src/index.ts`: Main Express app with CORS, Helmet, Rate Limiting, Morgan
+- Created `src/scripts/seed.ts`: Seeds admin user + default settings
+- Resume & Certificates Implementation
+- Build "Skills Cloud" animated component (Completed)
+- Implement certificates data model (MongoDB) (Completed)
+- Build `/certificates` timeline UI (Completed)
+- Create `/admin/certificates` CMS (Implemented, pending verification)
+
+Phase 5: Global Layout & Admin Shell
+- Build responsive Navbar with Framer Motion (Completed)
+- Build Footer with unified links (Completed)
+- Implement `/admin` layout wrapper with sidebar (Completed)
+- Create `/admin/milestones` and `/admin/updates` CMS (Implemented, pending verification)
+
+Phase 6: Integration & Refinement
+- Connect frontend to actual data (instead of mock data) (Implemented, pending verification)
+- Implement contact form submission
+- Global settings CMS (`/admin/settings`) (Implemented, pending verification) responsive design - [COMPLETED for Admin]
+
+Phase 7: Final Polish & Deployment - [PENDING]
+- SEO optimization
+- Performance testing
+- Deployment to Vercel/Render
