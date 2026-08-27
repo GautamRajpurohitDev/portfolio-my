@@ -1,36 +1,52 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { skillsApi } from "@/lib/api";
-import { Skill, SkillStatus } from "@/types";
+import { Skill } from "@/types";
 import toast from "react-hot-toast";
-import { Save, Check, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Composer } from "../composer/Composer";
-import Link from "next/link";
+import { AdminEditorHeader, SaveState } from "@/components/admin/ui/AdminEditorHeader";
+import { DraftRecoveryBanner } from "@/components/admin/ui/DraftRecoveryBanner";
+import { useDraftRecovery } from "@/hooks/useDraftRecovery";
 
 const skillSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100),
-  category: z.enum(["programming","cs-fundamentals","web","databases","systems","cloud","ai-ml","mobile","tools"]),
-  status: z.enum([
-    "not-started","in-progress","practicing","review","completed","optional","paused",
-    "learning","familiar","proficient","advanced","planned"
-  ]).default("not-started"),
+  name: z.string().min(1, "Skill name is required").max(100),
+  category: z.enum([
+    "programming",
+    "cs-fundamentals",
+    "web",
+    "databases",
+    "systems",
+    "cloud",
+    "ai-ml",
+    "mobile",
+    "tools",
+  ]),
+  status: z
+    .enum([
+      "not-started",
+      "in-progress",
+      "practicing",
+      "review",
+      "completed",
+      "optional",
+      "paused",
+      "learning",
+      "familiar",
+      "proficient",
+      "advanced",
+      "planned",
+    ])
+    .default("not-started"),
   progress: z.number().min(0).max(100).optional().default(0),
   description: z.string().optional().default(""),
   icon: z.string().optional().default(""),
   published: z.boolean().optional().default(true),
   featured: z.boolean().optional().default(false),
   order: z.number().int().optional().default(0),
-  media: z.array(z.object({
-    url: z.string(),
-    mimeType: z.string(),
-    alt: z.string().optional().default(""),
-    order: z.number().int().optional().default(0),
-  })).optional().default([]),
 });
 
 type SkillFormData = z.infer<typeof skillSchema>;
@@ -41,14 +57,19 @@ interface SkillFormProps {
 
 export default function SkillForm({ skill }: SkillFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
+    skill ? new Date(skill.updatedAt || skill.createdAt) : null
+  );
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
     watch,
-    control,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<SkillFormData>({
     resolver: zodResolver(skillSchema) as any,
@@ -61,213 +82,260 @@ export default function SkillForm({ skill }: SkillFormProps) {
           description: skill.description || "",
           icon: skill.icon || "",
           published: skill.published,
-          featured: skill.featured,
-          order: skill.order,
-          media: skill.media || [],
+          featured: skill.featured || false,
+          order: skill.order || 0,
         }
       : {
           name: "",
           category: "programming",
-          status: "not-started",
+          status: "in-progress",
           progress: 0,
           description: "",
           icon: "",
           published: true,
           featured: false,
           order: 0,
-          media: [],
         },
   });
 
   const isPublished = watch("published");
+  const nameValue = watch("name");
   const currentProgress = watch("progress") ?? 0;
 
-  const onSubmit = async (data: SkillFormData) => {
+  // Update saveState when dirty
+  useEffect(() => {
+    if (isDirty && saveState === "saved") {
+      setSaveState("unsaved");
+    }
+  }, [isDirty, saveState]);
+
+  // Draft recovery hook
+  const { hasRecoverableDraft, restoreDraft, discardDraft, clearDraftBackup } =
+    useDraftRecovery<SkillFormData>({
+      storageKey: `skill_${skill?._id || "new"}`,
+      isDirty,
+      getValues,
+      resetForm: reset,
+      serverUpdatedAt: skill?.updatedAt,
+      onSaveShortcut: () => handleSave(false),
+    });
+
+  const handleSave = async (shouldPublish?: boolean) => {
+    const formData = getValues();
+    const isPublishAction =
+      shouldPublish !== undefined ? shouldPublish : isPublished;
+
     setIsSubmitting(true);
+    setSaveState("saving");
+
     try {
-      if (skill) {
-        await skillsApi.update(skill._id, data);
-        toast.success("Skill updated successfully");
+      const submitData: any = {
+        ...formData,
+        progress: Number(formData.progress || 0),
+        published: isPublishAction,
+      };
+
+      if (skill?._id) {
+        await skillsApi.update(skill._id, submitData);
+        toast.success(isPublishAction ? "Skill published" : "Draft saved");
       } else {
-        await skillsApi.create(data);
+        const res = await skillsApi.create(submitData);
         toast.success("Skill created successfully");
+        clearDraftBackup();
+        router.push(`/admin/skills/${res.data.data._id}/edit`);
+        return;
       }
-      
-      router.push("/admin/skills");
-      router.refresh();
+
+      clearDraftBackup();
+      setValue("published", isPublishAction, { shouldDirty: false });
+      reset(formData);
+      setSaveState("saved");
+      setLastSavedAt(new Date());
     } catch (error: any) {
+      setSaveState("failed");
       toast.error(error.response?.data?.message || "Failed to save skill");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
-    <div className="bg-[#0f0f0f] border border-border/60 rounded-xl p-6 space-y-6">
-      <h3 className="text-xs font-mono font-semibold tracking-widest text-text-muted uppercase border-b border-border/40 pb-3 mb-4">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 max-w-5xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <Link href="/admin/skills" className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted hover:text-primary transition-colors mb-2 uppercase tracking-wider">
-            <ArrowLeft size={12} /> Back to Skills Desk
-          </Link>
-          <h1 className="text-2xl font-bold font-clash text-text-primary">
-            {skill ? `Edit Skill: ${skill.name}` : "New Skill Entry"}
-          </h1>
-          {isDirty && <p className="text-xs font-mono text-yellow-500 mt-1">● Unsaved changes</p>}
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            type="button" 
-            onClick={() => router.push("/admin/skills")} 
-            className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors text-sm font-medium"
-          >
-            Cancel
-          </button>
+    <div className="space-y-6 pb-20">
+      {/* ── Editor Header ─────────────────────────────────────── */}
+      <AdminEditorHeader
+        backHref="/admin/skills"
+        backLabel="Skills"
+        breadcrumb={skill ? "SKILLS / EDIT" : "SKILLS / CREATE"}
+        title={nameValue || "New Technical Skill"}
+        isPublished={isPublished}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        previewHref="/skills"
+        onSaveDraft={() => handleSave(false)}
+        onPublish={() => handleSave(true)}
+        onUnpublish={isPublished ? () => handleSave(false) : undefined}
+        isSubmitting={isSubmitting}
+      />
 
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="px-6 py-2.5 bg-primary text-bg font-semibold font-clash text-sm rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center gap-2"
-          >
-            {isSubmitting ? (
-              <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              isPublished ? <Check size={15} /> : <Save size={15} />
-            )}
-            {isSubmitting ? "Saving..." : (isPublished ? "Publish Skill" : "Save Draft")}
-          </button>
-        </div>
-      </div>
+      {/* ── Draft Recovery Banner ─────────────────────────────── */}
+      {hasRecoverableDraft && (
+        <DraftRecoveryBanner onRestore={restoreDraft} onDiscard={discardDraft} />
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          
-          <Section title="Skill Information">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">Skill Name *</label>
-                <input
-                  {...register("name")}
-                  placeholder="e.g. Git & GitHub, C Programming, Data Structures"
-                  className="w-full bg-white/[0.03] border border-border/60 rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors text-sm font-body"
-                />
-                {errors.name && <p className="text-red-400 text-xs font-mono">{errors.name.message}</p>}
-              </div>
+      {/* ── Form Body ─────────────────────────────────────────── */}
+      <form onSubmit={handleSubmit(() => handleSave())} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Main Column (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-5">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                01 / Skill Definition
+              </h3>
 
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">Description & Documentation Notes</label>
-                <div className="mt-2">
-                  <Composer
-                    contentField="description"
-                    mediaField="media"
-                    control={control}
-                    watch={watch}
-                    setValue={setValue}
+              {/* Name & Icon */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Skill Name <span className="text-primary">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Git & GitHub, TypeScript, Rust"
+                    {...register("name")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                  />
+                  {errors.name && (
+                    <p className="text-[11px] font-mono text-red-400">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Icon / Glyph (optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ⚡ or code"
+                    {...register("icon")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
                   />
                 </div>
               </div>
-              
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">Icon identifier / SVG</label>
-                <input
-                  {...register("icon")}
-                  placeholder="e.g. GitBranch, Terminal, Layers"
-                  className="w-full bg-white/[0.03] border border-border/60 rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-mono text-sm"
-                />
-              </div>
-            </div>
-          </Section>
-        </div>
 
-        <div className="space-y-6">
-          <Section title="Classification & Progress">
-            <div className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">Domain Category</label>
-                <select
-                  {...register("category")}
-                  className="w-full bg-[#0a0a0a] border border-border/60 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary/50 text-sm"
-                >
-                  <option value="programming">Programming Languages</option>
-                  <option value="cs-fundamentals">CS Fundamentals</option>
-                  <option value="web">Web Development</option>
-                  <option value="databases">Databases</option>
-                  <option value="systems">Systems & OS</option>
-                  <option value="cloud">Cloud & DevOps</option>
-                  <option value="ai-ml">AI & Machine Learning</option>
-                  <option value="mobile">Mobile Development</option>
-                  <option value="tools">Tools & Workflow</option>
-                </select>
-              </div>
+              {/* Category & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Category <span className="text-primary">*</span>
+                  </label>
+                  <select
+                    {...register("category")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+                  >
+                    <option value="programming">Programming Languages</option>
+                    <option value="cs-fundamentals">CS Fundamentals</option>
+                    <option value="web">Web Development</option>
+                    <option value="databases">Databases & Storage</option>
+                    <option value="systems">Systems & Architecture</option>
+                    <option value="cloud">Cloud & DevOps</option>
+                    <option value="ai-ml">AI & Machine Learning</option>
+                    <option value="mobile">Mobile Development</option>
+                    <option value="tools">Tools & Workflow</option>
+                  </select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">Learning Status</label>
-                <select
-                  {...register("status")}
-                  className="w-full bg-[#0a0a0a] border border-border/60 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary/50 text-sm font-medium"
-                >
-                  <option value="not-started">Not Started / Planned</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="practicing">Practicing</option>
-                  <option value="review">In Review</option>
-                  <option value="completed">Completed</option>
-                  <option value="optional">Optional</option>
-                  <option value="paused">Paused</option>
-                </select>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Proficiency Status <span className="text-primary">*</span>
+                  </label>
+                  <select
+                    {...register("status")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer capitalize"
+                  >
+                    <option value="in-progress">In Progress</option>
+                    <option value="practicing">Practicing</option>
+                    <option value="review">Review</option>
+                    <option value="completed">Completed</option>
+                    <option value="not-started">Not Started</option>
+                    <option value="paused">Paused</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Progress 0 - 100% */}
-              <div className="space-y-2 p-3.5 bg-white/[0.02] border border-border/40 rounded-lg">
+              {/* Progress Slider & Value */}
+              <div className="space-y-2 pt-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-mono text-text-secondary uppercase tracking-wider">Progress Percentage</label>
-                  <span className="text-xs font-mono font-bold text-accent">{currentProgress}%</span>
+                  <label className="text-xs font-medium text-text-secondary">
+                    Mastery Progress (%)
+                  </label>
+                  <span className="text-sm font-mono font-bold text-primary">
+                    {currentProgress}%
+                  </span>
                 </div>
                 <input
                   type="range"
                   min="0"
                   max="100"
+                  step="1"
                   {...register("progress", { valueAsNumber: true })}
-                  className="w-full accent-primary h-1.5 bg-border/80 rounded-lg cursor-pointer"
+                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
-                <div className="flex justify-between text-[10px] font-mono text-text-muted">
-                  <span>0%</span>
-                  <span>50%</span>
-                  <span>100%</span>
-                </div>
+                <p className="text-[10.5px] font-mono text-text-muted">
+                  Progress and status are independent. (e.g. 89% In-Progress).
+                </p>
               </div>
 
-              <div className="flex flex-col gap-3 pt-2">
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border/60 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                  <span className="text-xs font-medium text-text-primary">Publish to Public Portfolio</span>
-                  <input type="checkbox" {...register("published")} className="w-4 h-4 rounded border-border bg-black text-primary accent-primary" />
-                </label>
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border/60 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                  <span className="text-xs font-medium text-text-primary">Highlight as Featured</span>
-                  <input type="checkbox" {...register("featured")} className="w-4 h-4 rounded border-border bg-black text-primary accent-primary" />
-                </label>
-              </div>
-
+              {/* Description */}
               <div className="space-y-1.5">
-                <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">Display Order</label>
-                <input
-                  type="number"
-                  {...register("order", { valueAsNumber: true })}
-                  className="w-full bg-white/[0.03] border border-border/60 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary/50 text-sm font-mono"
+                <label className="block text-xs font-medium text-text-secondary">
+                  Focus Topics & Context
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Version control, branching workflows, interactive rebasing, merge conflict resolution..."
+                  {...register("description")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body leading-relaxed"
                 />
               </div>
             </div>
-          </Section>
+          </div>
+
+          {/* Right Sidebar (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                Display & Ordering
+              </h3>
+
+              {/* Order */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  {...register("order", { valueAsNumber: true })}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-mono text-text-primary focus:outline-none focus:border-primary/50"
+                />
+              </div>
+
+              {/* Featured */}
+              <label className="flex items-center gap-2.5 pt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  {...register("featured")}
+                  className="w-4 h-4 rounded border-border/70 bg-white/5 text-primary accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-medium text-text-primary">
+                  Highlight in Featured Stack
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

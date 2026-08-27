@@ -335,6 +335,10 @@ function LivePreview({ data }: { data: Partial<UpdateFormData> }) {
   );
 }
 
+import { AdminEditorHeader, SaveState } from "@/components/admin/ui/AdminEditorHeader";
+import { DraftRecoveryBanner } from "@/components/admin/ui/DraftRecoveryBanner";
+import { useDraftRecovery } from "@/hooks/useDraftRecovery";
+
 // ── Main Form ─────────────────────────────────────────────────
 interface UpdateFormProps {
   update: Update | null;
@@ -342,10 +346,14 @@ interface UpdateFormProps {
 
 export default function UpdateForm({ update }: UpdateFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showLinks, setShowLinks]       = useState(
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
+    update ? new Date(update.updatedAt || update.createdAt) : null
+  );
+  const [showLinks, setShowLinks] = useState(
     !!(update?.linkedinUrl || update?.xUrl || update?.githubUrl)
   );
-  const [showPreview, setShowPreview]   = useState(true);
+  const [showPreview, setShowPreview] = useState(true);
   const router = useRouter();
 
   const {
@@ -354,132 +362,135 @@ export default function UpdateForm({ update }: UpdateFormProps) {
     watch,
     control,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<UpdateFormData>({
     resolver: zodResolver(updateSchema) as any,
     defaultValues: update
       ? {
-          title:          update.title,
-          slug:           update.slug,
-          summary:        update.summary,
-          content:        update.content || "",
-          date:           formatDate(update.date),
-          tags:           update.tags || [],
-          coverImage:     update.coverImage || "",
-          linkedinUrl:    update.linkedinUrl || "",
-          xUrl:           update.xUrl || "",
-          githubUrl:      update.githubUrl || "",
+          title: update.title,
+          slug: update.slug,
+          summary: update.summary,
+          content: update.content || "",
+          date: formatDate(update.date),
+          tags: update.tags || [],
+          coverImage: update.coverImage || "",
+          linkedinUrl: update.linkedinUrl || "",
+          xUrl: update.xUrl || "",
+          githubUrl: update.githubUrl || "",
           relatedProject: update.relatedProject || null,
-          published:      update.published,
-          media:          update.media || [],
+          published: update.published,
+          media: update.media || [],
         }
       : {
-          title: "", slug: "", summary: "", content: "",
+          title: "",
+          slug: "",
+          summary: "",
+          content: "",
           date: formatDate(),
           tags: [],
-          coverImage: "", linkedinUrl: "", xUrl: "", githubUrl: "",
-          relatedProject: null, published: false, media: []
+          coverImage: "",
+          linkedinUrl: "",
+          xUrl: "",
+          githubUrl: "",
+          relatedProject: null,
+          published: false,
+          media: [],
         },
   });
 
   // Watch values for live preview
   const watched = watch();
+  const isPublished = watched.published;
+  const titleValue = watched.title;
 
-  // Unsaved changes guard
+  // Update saveState when dirty
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = ""; }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+    if (isDirty && saveState === "saved") {
+      setSaveState("unsaved");
+    }
+  }, [isDirty, saveState]);
 
-  const onSubmit = async (data: UpdateFormData) => {
+  // Draft recovery hook
+  const { hasRecoverableDraft, restoreDraft, discardDraft, clearDraftBackup } =
+    useDraftRecovery<UpdateFormData>({
+      storageKey: `update_${update?._id || "new"}`,
+      isDirty,
+      getValues,
+      resetForm: reset,
+      serverUpdatedAt: update?.updatedAt,
+      onSaveShortcut: () => handleSave(false),
+    });
+
+  const handleSave = async (shouldPublish?: boolean) => {
+    const formData = getValues();
+    const isPublishAction =
+      shouldPublish !== undefined ? shouldPublish : isPublished;
+
     setIsSubmitting(true);
+    setSaveState("saving");
+
     try {
       const submitData: any = {
-        ...data,
-        date: new Date(data.date).toISOString(),
+        ...formData,
+        date: new Date(formData.date).toISOString(),
+        published: isPublishAction,
       };
-      if (!submitData.slug)           delete submitData.slug;
-      if (!submitData.coverImage)     delete submitData.coverImage;
-      if (!submitData.linkedinUrl)    delete submitData.linkedinUrl;
-      if (!submitData.xUrl)           delete submitData.xUrl;
-      if (!submitData.githubUrl)      delete submitData.githubUrl;
+      if (!submitData.slug) delete submitData.slug;
+      if (!submitData.coverImage) delete submitData.coverImage;
+      if (!submitData.linkedinUrl) delete submitData.linkedinUrl;
+      if (!submitData.xUrl) delete submitData.xUrl;
+      if (!submitData.githubUrl) delete submitData.githubUrl;
       if (!submitData.relatedProject) delete submitData.relatedProject;
       submitData.tags = (submitData.tags || []).filter((t: string) => t.trim() !== "");
 
-      if (update) {
+      if (update?._id) {
         await updatesApi.update(update._id, submitData);
-        toast.success("Update saved");
+        toast.success(isPublishAction ? "Update published" : "Draft saved");
       } else {
-        await updatesApi.create(submitData);
-        toast.success("Update created");
+        const res = await updatesApi.create(submitData);
+        toast.success("Update created successfully");
+        clearDraftBackup();
+        router.push(`/admin/updates/${res.data.data._id}/edit`);
+        return;
       }
 
-      router.push("/admin/updates");
-      router.refresh();
+      clearDraftBackup();
+      setValue("published", isPublishAction, { shouldDirty: false });
+      reset(formData);
+      setSaveState("saved");
+      setLastSavedAt(new Date());
     } catch (err: any) {
+      setSaveState("failed");
       toast.error(err.response?.data?.message || "Failed to save update");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isPublished = watched.published;
-
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-0 pb-14">
-      {/* ── Page header ─────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-7">
-        <div>
-          <p className="text-[11px] font-mono text-text-muted tracking-widest uppercase mb-2">
-            {update ? "Edit Update" : "New Update"} / Build Log
-          </p>
-          <h1 className="text-2xl font-clash font-bold text-text-primary">
-            {update ? "Edit Update" : "Compose Update"}
-          </h1>
-          {isDirty && (
-            <p className="text-[11px] font-mono text-yellow-500/80 mt-1 uppercase tracking-wider flex items-center gap-1.5">
-              <AlertTriangle size={11} /> Unsaved changes
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => router.push("/admin/updates")}
-            className="px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary border border-border/60 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          {/* Draft toggle */}
-          <label className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] border border-border/60 rounded-lg cursor-pointer hover:bg-white/[0.06] transition-colors">
-            <input
-              type="checkbox"
-              {...register("published")}
-              className="w-3.5 h-3.5 accent-primary"
-            />
-            <span className="text-sm text-text-secondary font-mono">Publish</span>
-          </label>
-          {/* Save button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold font-clash rounded-lg transition-all active:scale-[0.98] disabled:opacity-60 ${
-              isPublished
-                ? "bg-primary text-bg hover:bg-primary/90"
-                : "bg-white/[0.08] text-text-primary border border-border/60 hover:bg-white/[0.12]"
-            }`}
-          >
-            {isSubmitting
-              ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              : isPublished ? <Check size={15} /> : <Save size={15} />
-            }
-            {isSubmitting ? "Saving…" : isPublished ? "Publish Update" : "Save Draft"}
-          </button>
-        </div>
-      </div>
+    <form onSubmit={handleSubmit(() => handleSave())} className="space-y-6 pb-20">
+      {/* ── Editor Header ─────────────────────────────────────── */}
+      <AdminEditorHeader
+        backHref="/admin/updates"
+        backLabel="Updates"
+        breadcrumb={update ? "UPDATES / EDIT" : "UPDATES / CREATE"}
+        title={titleValue || "New Build Log Update"}
+        isPublished={isPublished}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        previewHref="/"
+        onSaveDraft={() => handleSave(false)}
+        onPublish={() => handleSave(true)}
+        onUnpublish={isPublished ? () => handleSave(false) : undefined}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* ── Draft Recovery Banner ─────────────────────────────── */}
+      {hasRecoverableDraft && (
+        <DraftRecoveryBanner onRestore={restoreDraft} onDiscard={discardDraft} />
+      )}
 
       {/* ── Two-column layout ────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6">

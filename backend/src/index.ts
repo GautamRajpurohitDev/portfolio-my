@@ -16,6 +16,9 @@ import uploadRoutes   from "./routes/upload";
 import dashboardRoutes from "./routes/dashboard";
 import roadmapRoutes   from "./routes/roadmap";
 import resumeRoutes    from "./routes/resume";
+import chatRoutes      from "./routes/chat";
+import activityRoutes  from "./routes/activity";
+import securityRoutes  from "./routes/security";
 import { requireCsrf } from "./middleware/auth";
 import path           from "path";
 import fs             from "fs";
@@ -72,10 +75,60 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
+import mongoose from "mongoose";
+
+// Serve uploaded files as static assets
+const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
 // ── HEALTH CHECK ──────────────────────────────────────────────
 
 app.get("/api/health", (_req, res) => {
-  res.json({ success: true, message: "Gautam Portfolio API is running ✓", env: process.env.NODE_ENV });
+  const isDbConnected = mongoose.connection.readyState === 1;
+  const isAiConfigured = Boolean(
+    process.env.NVIDIA_API_KEY &&
+    process.env.NVIDIA_API_KEY.trim().length > 0 &&
+    process.env.NVIDIA_API_KEY !== "mock_key"
+  );
+  const isMediaAvailable = fs.existsSync(UPLOADS_DIR);
+  const isAuthReady = Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET.length > 0);
+  const modelName = process.env.NVIDIA_MODEL || "nvidia/nemotron-3-ultra-550b-a55b";
+
+  res.json({
+    success: true,
+    message: "Gautam Portfolio API is running ✓",
+    env: process.env.NODE_ENV || "development",
+    timestamp: new Date().toISOString(),
+    services: {
+      frontend: {
+        status: "operational",
+        detail: "Next.js 16 Web App",
+      },
+      api: {
+        status: "operational",
+        detail: `Express 4 (Port ${PORT})`,
+      },
+      database: {
+        status: isDbConnected ? "connected" : "disconnected",
+        detail: isDbConnected ? "MongoDB Atlas (Ready)" : "Database Disconnected",
+      },
+      auth: {
+        status: isAuthReady ? "configured" : "unconfigured",
+        detail: isAuthReady ? "JWT Cookie Authentication" : "JWT Secret Missing",
+      },
+      mediaStorage: {
+        status: isMediaAvailable ? "accessible" : "unavailable",
+        detail: isMediaAvailable ? "Uploads Storage Ready" : "Uploads Dir Missing",
+      },
+      nvidiaAi: {
+        status: isAiConfigured ? "configured" : "not-configured",
+        provider: "NVIDIA",
+        model: modelName,
+        detail: isAiConfigured ? modelName : "NVIDIA_API_KEY Missing",
+      },
+    },
+    uptime: Math.floor(process.uptime()),
+  });
 });
 
 // ── API ROUTES ────────────────────────────────────────────────
@@ -89,10 +142,10 @@ app.use("/api/media",    mediaRoutes);     // new media library
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/roadmap",   roadmapRoutes);
 app.use("/api/resume",    resumeRoutes);
+app.use("/api/chat",      chatRoutes);
+app.use("/api/activity",  activityRoutes);
+app.use("/api/security",  securityRoutes);
 
-// Serve uploaded files as static assets
-const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use("/uploads", express.static(UPLOADS_DIR));
 
 // ── 404 HANDLER ───────────────────────────────────────────────

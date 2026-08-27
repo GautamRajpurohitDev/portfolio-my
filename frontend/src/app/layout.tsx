@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -66,8 +68,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f4ef" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
@@ -78,8 +82,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
       <head>
+        {/* Prevent Flash of Wrong Theme (FOUC) - Default to Dark */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('theme');
+                  var theme = saved ? saved : 'dark';
+                  document.documentElement.setAttribute('data-theme', theme);
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                  } else {
+                    document.documentElement.classList.add('light');
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {
+                  document.documentElement.setAttribute('data-theme', 'dark');
+                  document.documentElement.classList.add('dark');
+                }
+              })();
+            `,
+          }}
+        />
         {/* Clash Grotesk via Fontshare */}
         <link rel="preconnect" href="https://api.fontshare.com" />
         <link
@@ -102,24 +130,26 @@ export default function RootLayout({
         `}</style>
       </head>
       <body className="bg-bg text-text-primary font-body antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{
             style: {
-              background: "#161616",
-              color: "#f0ede8",
-              border: "1px solid #1e1e1e",
+              background: "var(--color-bg-card)",
+              color: "var(--color-text-primary)",
+              border: "1px solid var(--color-border)",
               borderRadius: "8px",
               fontSize: "14px",
             },
             success: {
-              iconTheme: { primary: "#4caf79", secondary: "#161616" },
+              iconTheme: { primary: "var(--color-success)", secondary: "var(--color-bg)" },
             },
             error: {
-              iconTheme: { primary: "#e85a4c", secondary: "#161616" },
+              iconTheme: { primary: "var(--color-error)", secondary: "var(--color-bg)" },
             },
           }}
         />

@@ -13,9 +13,10 @@ interface MediaPickerProps {
   value: string;
   onChange: (url: string) => void;
   trigger?: React.ReactNode;
+  accept?: string;
 }
 
-export function MediaPicker({ value, onChange, trigger }: MediaPickerProps) {
+export function MediaPicker({ value, onChange, trigger, accept }: MediaPickerProps) {
   const [open, setOpen] = useState(false);
   const [media, setMedia] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -130,7 +131,7 @@ export function MediaPicker({ value, onChange, trigger }: MediaPickerProps) {
                 multiple
                 className="hidden"
                 onChange={handleUpload}
-                accept="image/*,video/mp4,video/webm"
+                accept={accept || "image/*,video/mp4,video/webm"}
               />
               <label
                 htmlFor="picker-upload"

@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 // ── Shared primitives ─────────────────────────────────────────
 
 const inputCls =
-  "w-full bg-white/[0.03] border border-border/60 rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body";
+  "w-full bg-white/[0.02] border border-white/[0.08] rounded px-3.5 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body";
 const textareaCls = `${inputCls} resize-none`;
 
 function Field({ label, hint, error, children }: {
@@ -22,7 +22,7 @@ function Field({ label, hint, error, children }: {
   return (
     <div className="space-y-1.5">
       <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">{label}</label>
-      {hint && <p className="text-[11px] text-text-muted leading-relaxed">{hint}</p>}
+      {hint && <p className="text-[11px] text-text-muted leading-relaxed font-body">{hint}</p>}
       {children}
       {error && <p className="text-[11px] text-red-400 font-mono">{error}</p>}
     </div>
@@ -34,15 +34,15 @@ function SettingsSection({ icon, title, children }: {
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <section className="bg-[#0f0f0f] border border-border/60 rounded-xl overflow-hidden">
+    <section className="bg-[#0d0d0d] border border-white/[0.08] rounded-xl overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-3 px-6 py-4 border-b border-border/40 hover:bg-white/[0.02] transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <span className="text-text-muted">{icon}</span>
-          <h2 className="text-[11px] font-mono text-text-secondary uppercase tracking-widest">{title}</h2>
+          <h2 className="text-xs font-mono font-bold text-text-primary uppercase tracking-wider">{title}</h2>
         </div>
         {open ? <ChevronUp size={14} className="text-text-muted" /> : <ChevronDown size={14} className="text-text-muted" />}
       </button>
@@ -58,32 +58,32 @@ function Toggle({ label, checked, onChange }: {
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-3 group"
+      className="flex items-center gap-3 group cursor-pointer"
     >
       {checked
         ? <ToggleRight size={22} className="text-primary" />
         : <ToggleLeft size={22} className="text-text-muted" />}
-      <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">{label}</span>
+      <span className="text-xs font-body text-text-secondary group-hover:text-text-primary transition-colors">{label}</span>
     </button>
   );
 }
 
 function SaveBar({ isDirty, isSubmitting, setAction, isDraft, onPreview }: { isDirty: boolean; isSubmitting: boolean; setAction: (v: "draft" | "publish") => void; isDraft: boolean; onPreview: () => void }) {
   return (
-    <div className="sticky top-0 z-10 -mx-8 sm:-mx-10 xl:-mx-12 px-8 sm:px-10 xl:px-12 py-3
-      bg-bg/90 backdrop-blur-md border-b border-border/40 flex items-center justify-between gap-4 mb-8">
+    <div className="sticky top-0 z-10 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 py-3.5
+      bg-[#080808]/95 backdrop-blur-md border-b border-white/[0.08] flex items-center justify-between gap-4 mb-8">
       <p className="text-xs font-mono text-text-muted flex gap-3">
         {isDirty
-          ? <span className="text-yellow-500/80">● Unsaved changes</span>
-          : <span className="text-success/70">● Saved</span>}
-        {isDraft && <span className="text-primary">● Viewing Draft</span>}
+          ? <span className="text-amber-400/90 font-medium">● Unsaved changes</span>
+          : <span className="text-emerald-400 font-medium">● All changes saved</span>}
+        {isDraft && <span className="text-primary font-medium">● Viewing Draft</span>}
       </p>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onPreview}
-          className="px-4 py-2 bg-white/[0.03] border border-border/40 text-text-secondary text-sm font-semibold font-clash
-            rounded-lg hover:bg-white/[0.08] hover:text-text-primary transition-all"
+          className="px-3.5 py-1.5 bg-white/[0.02] border border-white/[0.08] text-text-secondary text-xs font-body
+            rounded hover:bg-white/[0.06] hover:text-text-primary transition-all cursor-pointer"
         >
           Preview
         </button>
@@ -91,21 +91,18 @@ function SaveBar({ isDirty, isSubmitting, setAction, isDraft, onPreview }: { isD
           type="submit"
           onClick={() => setAction("draft")}
           disabled={isSubmitting || (!isDirty && !isDraft)}
-          className="px-4 py-2 bg-white/[0.05] border border-border/60 text-text-primary text-sm font-semibold font-clash
-            rounded-lg hover:bg-white/[0.1] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3.5 py-1.5 bg-white/[0.04] border border-white/[0.08] text-text-primary text-xs font-body
+            rounded hover:bg-white/[0.08] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           Save Draft
         </button>
         <button
           type="submit"
           onClick={() => setAction("publish")}
-          disabled={isSubmitting || !isDirty}
-          className="flex items-center gap-2 px-5 py-2 bg-primary text-bg text-sm font-semibold font-clash
-            rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={isSubmitting}
+          className="px-4 py-1.5 bg-primary text-[#080808] text-xs font-clash font-bold
+            rounded hover:bg-primary/90 transition-all disabled:opacity-50 cursor-pointer"
         >
-          {isSubmitting
-            ? <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
-            : <Save size={14} />}
           Publish
         </button>
       </div>

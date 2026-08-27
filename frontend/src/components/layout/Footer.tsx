@@ -18,21 +18,34 @@ interface ActiveSocial {
 const DEFAULT_QUICK_LINKS: FooterLink[] = [
   { href: "/",             label: "Home",         enabled: true },
   { href: "/about",        label: "About",        enabled: true },
+  { href: "/roadmap",      label: "Roadmap",      enabled: true },
   { href: "/journey",      label: "Journey",      enabled: true },
   { href: "/projects",     label: "Projects",     enabled: true },
   { href: "/skills",       label: "Skills",       enabled: true },
-  { href: "/certificates", label: "Certificates", enabled: true },
-  { href: "/milestones",   label: "Milestones",   enabled: true },
-  { href: "/updates",      label: "Updates",      enabled: true },
   { href: "/contact",      label: "Contact",      enabled: true },
+  { href: "/#ask-gautam",  label: "Ask Gautam",   enabled: true },
 ];
 
 export function Footer({ config }: { config?: any }) {
   if (config?.footer?.enabled === false) return null;
 
-  const quickLinks: FooterLink[] = config?.navigation
-    ? config.navigation.filter((n: any) => n.enabled).sort((a: any, b: any) => a.order - b.order)
-    : DEFAULT_QUICK_LINKS;
+  let quickLinks: FooterLink[] = DEFAULT_QUICK_LINKS;
+
+  if (config?.navigation?.length) {
+    const customLinks = config.navigation
+      .filter((n: any) => n.enabled)
+      .sort((a: any, b: any) => a.order - b.order)
+      .map((n: any) => ({ href: n.href, label: n.label, enabled: n.enabled }));
+
+    if (!customLinks.some((l: any) => l.href === "/contact" || l.label?.toLowerCase() === "contact")) {
+      customLinks.push({ href: "/contact", label: "Contact", enabled: true });
+    }
+    if (!customLinks.some((l: any) => l.href?.includes("ask-gautam") || l.label?.toLowerCase().includes("ask"))) {
+      customLinks.push({ href: "/#ask-gautam", label: "Ask Gautam", enabled: true });
+    }
+
+    quickLinks = customLinks;
+  }
 
   const socials = config?.socials || {};
   const activeSocials: ActiveSocial[] = [];

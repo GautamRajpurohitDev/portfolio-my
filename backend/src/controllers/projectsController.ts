@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Project } from "../models/Project";
 import { Revision } from "../models/Revision";
+import { logAudit } from "../lib/audit";
 
 // GET /api/projects — public, published only
 export async function getPublicProjects(_req: Request, res: Response): Promise<void> {
@@ -66,8 +67,23 @@ export async function getProjectBySlug(req: Request, res: Response): Promise<voi
 export async function createProject(req: Request, res: Response): Promise<void> {
   try {
     const project = await Project.create(req.body);
+    await logAudit({
+      event: "PROJECT_CREATED",
+      resourceType: "Project",
+      resourceId: String(project._id),
+      resourceTitle: project.title,
+      result: "SUCCESS",
+      metadata: { published: project.published },
+    });
     res.status(201).json({ success: true, data: project });
   } catch (error: any) {
+    await logAudit({
+      event: "PROJECT_CREATED",
+      resourceType: "Project",
+      resourceTitle: req.body?.title || "Untitled Project",
+      result: "FAILED",
+      metadata: { error: error.message },
+    });
     if (error.code === 11000) {
       res.status(400).json({ success: false, message: "A project with this slug already exists" });
       return;
@@ -86,6 +102,13 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
         { entityId: req.params.id, entityType: "Project", status: "draft" },
         { snapshot: req.body },
       );
+      await logAudit({
+        event: "PROJECT_DRAFT_SAVED",
+        resourceType: "Project",
+        resourceId: String(req.params.id),
+        resourceTitle: req.body?.title,
+        result: "SUCCESS",
+      });
       res.json({ success: true, message: "Draft saved successfully" });
       return;
     }
@@ -110,6 +133,15 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
 
       await Revision.findOneAndDelete({ entityId: req.params.id, entityType: "Project", status: "draft" });
       
+      await logAudit({
+        event: project.published ? "PROJECT_PUBLISHED" : "PROJECT_UNPUBLISHED",
+        resourceType: "Project",
+        resourceId: String(project._id),
+        resourceTitle: project.title,
+        result: "SUCCESS",
+        metadata: { published: project.published },
+      });
+
       res.json({ success: true, data: project });
       return;
     }
@@ -124,8 +156,24 @@ export async function updateProject(req: Request, res: Response): Promise<void> 
       res.status(404).json({ success: false, message: "Project not found" });
       return;
     }
+
+    await logAudit({
+      event: "PROJECT_UPDATED",
+      resourceType: "Project",
+      resourceId: String(project._id),
+      resourceTitle: project.title,
+      result: "SUCCESS",
+    });
+
     res.json({ success: true, data: project });
   } catch (error: any) {
+    await logAudit({
+      event: "PROJECT_UPDATED",
+      resourceType: "Project",
+      resourceId: String(req.params.id),
+      result: "FAILED",
+      metadata: { error: error.message },
+    });
     res.status(400).json({ success: false, message: error.message || "Update failed" });
   }
 }
@@ -138,6 +186,15 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
       res.status(404).json({ success: false, message: "Project not found" });
       return;
     }
+
+    await logAudit({
+      event: "PROJECT_DELETED",
+      resourceType: "Project",
+      resourceId: String(project._id),
+      resourceTitle: project.title,
+      result: "SUCCESS",
+    });
+
     res.json({ success: true, message: "Project deleted" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error" });

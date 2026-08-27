@@ -175,7 +175,7 @@ export default function LiquidHeroCursor({ heroRef }: Props) {
             const alpha  = (1 - t) * 0.6;
             ctx.beginPath();
             ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(232,197,71,${alpha})`;
+            ctx.strokeStyle = `rgba(185,150,0,${alpha})`;
             ctx.lineWidth   = 1.5;
             ctx.stroke();
           }
@@ -272,8 +272,8 @@ export default function LiquidHeroCursor({ heroRef }: Props) {
           marginTop:       "-5px",
           marginLeft:      "-5px",
           borderRadius:    "50%",
-          backgroundColor: "#e8c547",
-          boxShadow:       "0 0 0 2px rgba(232,197,71,0.18), 0 0 8px 2px rgba(232,197,71,0.3)",
+          backgroundColor: "#E9C43A",
+          boxShadow:       "0 0 0 2px rgba(23,23,23,0.12), 0 0 8px 2px rgba(233,196,58,0.45)",
           transform:       "translate3d(-200px,-200px,0)",
           opacity:         "0",
         }}
@@ -295,7 +295,7 @@ export default function LiquidHeroCursor({ heroRef }: Props) {
           marginTop:     "-18px",
           marginLeft:    "-18px",
           borderRadius:  "50%",
-          border:        "1.5px solid rgba(232,197,71,0.60)",
+          border:        "1.5px solid var(--hero-cursor-ring, rgba(244,241,234,0.70))",
           filter:        "url(#lhc-liquid)",
           transform:     "translate3d(-200px,-200px,0)",
           opacity:       "0",

@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { certificatesApi } from "@/lib/api";
 import { Certificate } from "@/types";
 import toast from "react-hot-toast";
-import { Save, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Composer } from "../composer/Composer";
+import { AdminEditorHeader, SaveState } from "@/components/admin/ui/AdminEditorHeader";
+import { DraftRecoveryBanner } from "@/components/admin/ui/DraftRecoveryBanner";
+import { useDraftRecovery } from "@/hooks/useDraftRecovery";
+import { MediaPicker } from "@/components/admin/media/MediaPicker";
 
 const certificateSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
@@ -17,12 +19,17 @@ const certificateSchema = z.object({
   credentialId: z.string().optional().default(""),
   credentialUrl: z.string().url("Invalid URL").optional().or(z.literal("")).default(""),
   date: z.string().min(1, "Date is required"),
-  media: z.array(z.object({
-    url: z.string(),
-    mimeType: z.string(),
-    alt: z.string().optional().default(""),
-    order: z.number().int().optional().default(0),
-  })).optional().default([]),
+  media: z
+    .array(
+      z.object({
+        url: z.string(),
+        mimeType: z.string(),
+        alt: z.string().optional().default(""),
+        order: z.number().int().optional().default(0),
+      })
+    )
+    .optional()
+    .default([]),
   description: z.string().optional().default(""),
   featured: z.boolean().optional().default(false),
   published: z.boolean().optional().default(true),
@@ -37,14 +44,18 @@ interface CertificateFormProps {
 
 export default function CertificateForm({ certificate }: CertificateFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
+    certificate ? new Date(certificate.updatedAt || certificate.createdAt) : null
+  );
   const router = useRouter();
 
   const formatDateForInput = (dateString?: Date | string) => {
-    if (!dateString) return new Date().toISOString().split('T')[0];
+    if (!dateString) return new Date().toISOString().split("T")[0];
     try {
-      return new Date(dateString).toISOString().split('T')[0];
+      return new Date(dateString).toISOString().split("T")[0];
     } catch {
-      return new Date().toISOString().split('T')[0];
+      return new Date().toISOString().split("T")[0];
     }
   };
 
@@ -52,8 +63,9 @@ export default function CertificateForm({ certificate }: CertificateFormProps) {
     register,
     handleSubmit,
     watch,
-    control,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<CertificateFormData>({
     resolver: zodResolver(certificateSchema) as any,
@@ -66,9 +78,9 @@ export default function CertificateForm({ certificate }: CertificateFormProps) {
           date: formatDateForInput(certificate.date),
           media: certificate.media || [],
           description: certificate.description || "",
-          featured: certificate.featured,
+          featured: certificate.featured || false,
           published: certificate.published,
-          order: certificate.order,
+          order: certificate.order || 0,
         }
       : {
           title: "",
@@ -85,152 +97,256 @@ export default function CertificateForm({ certificate }: CertificateFormProps) {
   });
 
   const isPublished = watch("published");
+  const titleValue = watch("title");
+  const mediaList = watch("media") || [];
 
-  const onSubmit = async (data: CertificateFormData) => {
+  // Update saveState when dirty
+  useEffect(() => {
+    if (isDirty && saveState === "saved") {
+      setSaveState("unsaved");
+    }
+  }, [isDirty, saveState]);
+
+  // Draft recovery hook
+  const { hasRecoverableDraft, restoreDraft, discardDraft, clearDraftBackup } =
+    useDraftRecovery<CertificateFormData>({
+      storageKey: `certificate_${certificate?._id || "new"}`,
+      isDirty,
+      getValues,
+      resetForm: reset,
+      serverUpdatedAt: certificate?.updatedAt,
+      onSaveShortcut: () => handleSave(false),
+    });
+
+  const handleSave = async (shouldPublish?: boolean) => {
+    const formData = getValues();
+    const isPublishAction =
+      shouldPublish !== undefined ? shouldPublish : isPublished;
+
     setIsSubmitting(true);
+    setSaveState("saving");
+
     try {
-      const submitData: any = { ...data, date: new Date(data.date).toISOString() };
+      const submitData: any = {
+        ...formData,
+        date: new Date(formData.date).toISOString(),
+        published: isPublishAction,
+      };
       if (!submitData.credentialUrl) delete submitData.credentialUrl;
 
-      if (certificate) {
+      if (certificate?._id) {
         await certificatesApi.update(certificate._id, submitData);
-        toast.success("Certificate updated");
+        toast.success(isPublishAction ? "Certificate published" : "Draft saved");
       } else {
-        await certificatesApi.create(submitData);
-        toast.success("Certificate created");
+        const res = await certificatesApi.create(submitData);
+        toast.success("Certificate created successfully");
+        clearDraftBackup();
+        router.push(`/admin/certificates/${res.data.data._id}/edit`);
+        return;
       }
-      
-      router.push("/admin/certificates");
-      router.refresh();
+
+      clearDraftBackup();
+      setValue("published", isPublishAction, { shouldDirty: false });
+      reset(formData);
+      setSaveState("saved");
+      setLastSavedAt(new Date());
     } catch (error: any) {
+      setSaveState("failed");
       toast.error(error.response?.data?.message || "Failed to save certificate");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
-    <div className="bg-bg-card border border-border rounded-xl p-6 space-y-6">
-      <h3 className="text-sm font-semibold tracking-widest text-text-secondary uppercase border-b border-border pb-4 mb-4">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold font-clash text-text-primary">
-            {certificate ? "Edit Certificate" : "New Certificate"}
-          </h1>
-          {isDirty && <p className="text-sm text-yellow-500 mt-1">Unsaved changes</p>}
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            type="button" 
-            onClick={() => router.push("/admin/certificates")} 
-            className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors text-sm font-medium"
-          >
-            Cancel
-          </button>
+    <div className="space-y-6 pb-20">
+      {/* ── Editor Header ─────────────────────────────────────── */}
+      <AdminEditorHeader
+        backHref="/admin/certificates"
+        backLabel="Certificates"
+        breadcrumb={certificate ? "CERTIFICATES / EDIT" : "CERTIFICATES / CREATE"}
+        title={titleValue || "New Certificate"}
+        isPublished={isPublished}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        previewHref="/about"
+        onSaveDraft={() => handleSave(false)}
+        onPublish={() => handleSave(true)}
+        onUnpublish={isPublished ? () => handleSave(false) : undefined}
+        isSubmitting={isSubmitting}
+      />
 
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className={`px-6 py-2 ${isPublished ? 'bg-primary' : 'bg-white/10 border border-border hover:bg-white/20'} text-bg font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 text-sm`}
-          >
-            {isSubmitting ? (
-              <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              isPublished ? <Check size={16} /> : <Save size={16} />
-            )}
-            {isSubmitting ? "Saving..." : (isPublished ? "Publish Certificate" : "Save Draft")}
-          </button>
-        </div>
-      </div>
+      {/* ── Draft Recovery Banner ─────────────────────────────── */}
+      {hasRecoverableDraft && (
+        <DraftRecoveryBanner onRestore={restoreDraft} onDiscard={discardDraft} />
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          
-          <Section title="Certificate Information">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Title *</label>
-                <input {...register("title")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors" />
-                {errors.title && <p className="text-red-400 text-xs">{errors.title.message}</p>}
+      {/* ── Form Body ─────────────────────────────────────────── */}
+      <form onSubmit={handleSubmit(() => handleSave())} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Main Column (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-5">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                01 / Credential Details
+              </h3>
+
+              {/* Title */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Certificate Title <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. AWS Certified Solutions Architect, Meta React Specialization"
+                  {...register("title")}
+                  className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                />
+                {errors.title && (
+                  <p className="text-[11px] font-mono text-red-400">
+                    {errors.title.message}
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Provider / Organization * (e.g. AWS, Coursera)</label>
-                <input {...register("provider")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors" />
-                {errors.provider && <p className="text-red-400 text-xs">{errors.provider.message}</p>}
+              {/* Provider & Issue Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Issuing Organization <span className="text-primary">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Coursera, Amazon Web Services, freeCodeCamp"
+                    {...register("provider")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                  />
+                  {errors.provider && (
+                    <p className="text-[11px] font-mono text-red-400">
+                      {errors.provider.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Issue Date <span className="text-primary">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    {...register("date")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs font-mono text-text-primary focus:outline-none focus:border-primary/50"
+                  />
+                  {errors.date && (
+                    <p className="text-[11px] font-mono text-red-400">
+                      {errors.date.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Description & Media</label>
-                <div className="mt-2">
-                  <Composer
-                    contentField="description"
-                    mediaField="media"
-                    control={control}
-                    watch={watch}
-                    setValue={setValue}
+              {/* Credential ID & URL */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Credential ID (optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UC-12345678"
+                    {...register("credentialId")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
                   />
                 </div>
-              </div>
-            </div>
-          </Section>
 
-          <Section title="Credential Details">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-text-secondary">Credential ID</label>
-                  <input {...register("credentialId")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors font-mono text-sm" />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Verification URL (optional)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    {...register("credentialUrl")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                  />
+                  {errors.credentialUrl && (
+                    <p className="text-[11px] font-mono text-red-400">
+                      {errors.credentialUrl.message}
+                    </p>
+                  )}
                 </div>
-                
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-text-secondary">Issue Date *</label>
-                  <input type="date" {...register("date")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
-                  {errors.date && <p className="text-red-400 text-xs">{errors.date.message}</p>}
-                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Credential URL (Link to verify)</label>
-                <input {...register("credentialUrl")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors text-sm" />
-                {errors.credentialUrl && <p className="text-red-400 text-xs">{errors.credentialUrl.message}</p>}
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Key Skills & Knowledge Verified
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Key concepts, projects completed, or technical domains evaluated..."
+                  {...register("description")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body leading-relaxed"
+                />
               </div>
             </div>
-          </Section>
-        </div>
 
-        <div className="space-y-6">
-          <Section title="Visibility & Status">
-            <div className="space-y-6">
-              <div className="flex flex-col gap-4">
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-sm font-medium text-text-primary">Publish</span>
-                  <input type="checkbox" {...register("published")} className="w-5 h-5 rounded border-border bg-black text-primary accent-primary" />
-                </label>
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-sm font-medium text-text-primary">Featured</span>
-                  <input type="checkbox" {...register("featured")} className="w-5 h-5 rounded border-border bg-black text-primary accent-primary" />
-                </label>
-              </div>
+            {/* Certificate Image Attachment */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                02 / Certificate Badge or Image
+              </h3>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Display Order (Lower is first)</label>
-                <input type="number" {...register("order", { valueAsNumber: true })} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary" />
-              </div>
+              <MediaPicker
+                value={mediaList[0]?.url || ""}
+                onChange={(url) => {
+                  setValue(
+                    "media",
+                    url
+                      ? [{ url, mimeType: "image/png", alt: titleValue, order: 0 }]
+                      : [],
+                    { shouldDirty: true }
+                  );
+                }}
+                accept="image/*,application/pdf"
+              />
             </div>
-          </Section>
+          </div>
 
+          {/* Right Sidebar (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                Display Options
+              </h3>
+
+              {/* Order */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  {...register("order", { valueAsNumber: true })}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-mono text-text-primary focus:outline-none focus:border-primary/50"
+                />
+              </div>
+
+              {/* Featured */}
+              <label className="flex items-center gap-2.5 pt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  {...register("featured")}
+                  className="w-4 h-4 rounded border-border/70 bg-white/5 text-primary accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-medium text-text-primary">
+                  Feature in Profile Highlights
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

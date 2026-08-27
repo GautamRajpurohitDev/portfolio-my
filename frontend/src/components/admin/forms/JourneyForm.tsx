@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { journeyApi } from "@/lib/api";
 import { JourneyEntry } from "@/types";
 import toast from "react-hot-toast";
-import { Save, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Composer } from "../composer/Composer";
+import { AdminEditorHeader, SaveState } from "@/components/admin/ui/AdminEditorHeader";
+import { DraftRecoveryBanner } from "@/components/admin/ui/DraftRecoveryBanner";
+import { useDraftRecovery } from "@/hooks/useDraftRecovery";
+import { MediaPicker } from "@/components/admin/media/MediaPicker";
 
 const journeySchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -17,12 +19,17 @@ const journeySchema = z.object({
   topic: z.string().min(1, "Topic is required").max(100),
   summary: z.string().min(1, "Summary is required").max(500),
   content: z.string().optional().default(""),
-  media: z.array(z.object({
-    url: z.string(),
-    mimeType: z.string(),
-    alt: z.string().optional().default(""),
-    order: z.number().int().optional().default(0),
-  })).optional().default([]),
+  media: z
+    .array(
+      z.object({
+        url: z.string(),
+        mimeType: z.string(),
+        alt: z.string().optional().default(""),
+        order: z.number().int().optional().default(0),
+      })
+    )
+    .optional()
+    .default([]),
   learned: z.string().optional().default(""),
   built: z.string().optional().default(""),
   problems: z.string().optional().default(""),
@@ -43,14 +50,18 @@ interface JourneyFormProps {
 
 export default function JourneyForm({ journey }: JourneyFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
+    journey ? new Date(journey.updatedAt || journey.createdAt) : null
+  );
   const router = useRouter();
 
   const formatDateForInput = (dateString?: Date | string) => {
-    if (!dateString) return new Date().toISOString().split('T')[0];
+    if (!dateString) return new Date().toISOString().split("T")[0];
     try {
-      return new Date(dateString).toISOString().split('T')[0];
+      return new Date(dateString).toISOString().split("T")[0];
     } catch {
-      return new Date().toISOString().split('T')[0];
+      return new Date().toISOString().split("T")[0];
     }
   };
 
@@ -58,8 +69,9 @@ export default function JourneyForm({ journey }: JourneyFormProps) {
     register,
     handleSubmit,
     watch,
-    control,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<JourneyFormData>({
     resolver: zodResolver(journeySchema) as any,
@@ -78,9 +90,9 @@ export default function JourneyForm({ journey }: JourneyFormProps) {
           nextStep: journey.nextStep || "",
           githubUrl: journey.githubUrl || "",
           relatedCertificate: journey.relatedCertificate || null,
-          featured: journey.featured,
-          published: journey.published,
-          order: journey.order,
+          featured: journey.featured || false,
+          published: journey.published || false,
+          order: journey.order || 0,
         }
       : {
           date: formatDateForInput(),
@@ -103,182 +115,321 @@ export default function JourneyForm({ journey }: JourneyFormProps) {
   });
 
   const isPublished = watch("published");
+  const titleValue = watch("title");
+  const mediaList = watch("media") || [];
 
-  const onSubmit = async (data: JourneyFormData) => {
+  // Update saveState when dirty
+  useEffect(() => {
+    if (isDirty && saveState === "saved") {
+      setSaveState("unsaved");
+    }
+  }, [isDirty, saveState]);
+
+  // Draft recovery hook
+  const { hasRecoverableDraft, restoreDraft, discardDraft, clearDraftBackup } =
+    useDraftRecovery<JourneyFormData>({
+      storageKey: `journey_${journey?._id || "new"}`,
+      isDirty,
+      getValues,
+      resetForm: reset,
+      serverUpdatedAt: journey?.updatedAt,
+      onSaveShortcut: () => handleSave(false),
+    });
+
+  const handleSave = async (shouldPublish?: boolean) => {
+    const formData = getValues();
+    const isPublishAction =
+      shouldPublish !== undefined ? shouldPublish : isPublished;
+
     setIsSubmitting(true);
-    try {
-      const submitData: any = { ...data, date: new Date(data.date).toISOString() };
-      if (!submitData.githubUrl) delete submitData.githubUrl;
+    setSaveState("saving");
 
-      if (journey) {
+    try {
+      const submitData: any = { ...formData, published: isPublishAction };
+      if (!submitData.githubUrl) delete submitData.githubUrl;
+      if (!submitData.relatedCertificate) delete submitData.relatedCertificate;
+
+      if (journey?._id) {
         await journeyApi.update(journey._id, submitData);
-        toast.success("Journey entry updated");
+        toast.success(isPublishAction ? "Journal entry published" : "Draft saved");
       } else {
-        await journeyApi.create(submitData);
-        toast.success("Journey entry created");
+        const res = await journeyApi.create(submitData);
+        toast.success("Journal entry created");
+        clearDraftBackup();
+        router.push(`/admin/journey/${res.data.data._id}/edit`);
+        return;
       }
-      
-      router.push("/admin/journey");
-      router.refresh();
+
+      clearDraftBackup();
+      setValue("published", isPublishAction, { shouldDirty: false });
+      reset(formData);
+      setSaveState("saved");
+      setLastSavedAt(new Date());
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to save journey entry");
+      setSaveState("failed");
+      toast.error(error.response?.data?.message || "Failed to save entry");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
-    <div className="bg-bg-card border border-border rounded-xl p-6 space-y-6">
-      <h3 className="text-sm font-semibold tracking-widest text-text-secondary uppercase border-b border-border pb-4 mb-4">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold font-clash text-text-primary">
-            {journey ? "Edit Journey Entry" : "New Journey Entry"}
-          </h1>
-          {isDirty && <p className="text-sm text-yellow-500 mt-1">Unsaved changes</p>}
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            type="button" 
-            onClick={() => router.push("/admin/journey")} 
-            className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors text-sm font-medium"
-          >
-            Cancel
-          </button>
+    <div className="space-y-6 pb-20">
+      {/* ── Editor Header ─────────────────────────────────────── */}
+      <AdminEditorHeader
+        backHref="/admin/journey"
+        backLabel="Journey"
+        breadcrumb={journey ? "JOURNEY / EDIT" : "JOURNEY / CREATE"}
+        title={titleValue || "New Learning Log"}
+        isPublished={isPublished}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        previewHref="/journey"
+        onSaveDraft={() => handleSave(false)}
+        onPublish={() => handleSave(true)}
+        onUnpublish={isPublished ? () => handleSave(false) : undefined}
+        isSubmitting={isSubmitting}
+      />
 
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className={`px-6 py-2 ${isPublished ? 'bg-primary' : 'bg-white/10 border border-border hover:bg-white/20'} text-bg font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 text-sm`}
-          >
-            {isSubmitting ? (
-              <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              isPublished ? <Check size={16} /> : <Save size={16} />
-            )}
-            {isSubmitting ? "Saving..." : (isPublished ? "Publish Entry" : "Save Draft")}
-          </button>
-        </div>
-      </div>
+      {/* ── Draft Recovery Banner ─────────────────────────────── */}
+      {hasRecoverableDraft && (
+        <DraftRecoveryBanner onRestore={restoreDraft} onDiscard={discardDraft} />
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          
-          <Section title="Entry Information">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Title *</label>
-                <input {...register("title")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors" />
-                {errors.title && <p className="text-red-400 text-xs">{errors.title.message}</p>}
-              </div>
+      {/* ── Form Body ─────────────────────────────────────────── */}
+      <form onSubmit={handleSubmit(() => handleSave())} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Main Column (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Primary Entry Details */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-5">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                01 / Daily Log Overview
+              </h3>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Topic * (e.g. Next.js, C++)</label>
-                <input {...register("topic")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors" />
-                {errors.topic && <p className="text-red-400 text-xs">{errors.topic.message}</p>}
-              </div>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Date */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Log Date <span className="text-primary">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    {...register("date")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs font-mono text-text-primary focus:outline-none focus:border-primary/50"
+                  />
+                  {errors.date && (
+                    <p className="text-[11px] font-mono text-red-400">
+                      {errors.date.message}
+                    </p>
+                  )}
+                </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-secondary">Summary *</label>
-              <textarea {...register("summary")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors resize-none" />
-              {errors.summary && <p className="text-red-400 text-xs">{errors.summary.message}</p>}
-            </div>
-          </Section>
-
-          <Section title="Full Content & Media">
-            <div className="space-y-6">
-              <Composer 
-                contentField="content" 
-                mediaField="media" 
-                control={control} 
-                watch={watch} 
-                setValue={setValue} 
-              />
-              
-              <div className="pt-6 border-t border-border/60">
-                <h4 className="text-sm font-semibold text-text-primary mb-4">Specific Fields (Optional)</h4>
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-text-secondary">What did you build?</label>
-                    <textarea {...register("built")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary text-sm resize-none" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-text-secondary">What did you learn?</label>
-                    <textarea {...register("learned")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary text-sm resize-none" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-text-secondary">Problems</label>
-                      <textarea {...register("problems")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary text-sm resize-none" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-text-secondary">Solutions</label>
-                      <textarea {...register("solved")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary text-sm resize-none" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-text-secondary">Next Steps</label>
-                    <textarea {...register("nextStep")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary text-sm resize-none" />
-                  </div>
+                {/* Topic */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Topic / Domain <span className="text-primary">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Git & Version Control"
+                    {...register("topic")}
+                    className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                  />
+                  {errors.topic && (
+                    <p className="text-[11px] font-mono text-red-400">
+                      {errors.topic.message}
+                    </p>
+                  )}
                 </div>
               </div>
-            </div>
-          </Section>
-        </div>
 
-        <div className="space-y-6">
-          <Section title="Visibility & Status">
-            <div className="space-y-6">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Date *</label>
-                <input type="date" {...register("date")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
-                {errors.date && <p className="text-red-400 text-xs">{errors.date.message}</p>}
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-sm font-medium text-text-primary">Publish Entry</span>
-                  <input type="checkbox" {...register("published")} className="w-5 h-5 rounded border-border bg-black text-primary accent-primary" />
+              {/* Title */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Entry Headline <span className="text-primary">*</span>
                 </label>
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-sm font-medium text-text-primary">Featured Entry</span>
-                  <input type="checkbox" {...register("featured")} className="w-5 h-5 rounded border-border bg-black text-primary accent-primary" />
+                <input
+                  type="text"
+                  placeholder="e.g. Mastered Interactive Git Rebasing and Cherry-Picking"
+                  {...register("title")}
+                  className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
+                />
+                {errors.title && (
+                  <p className="text-[11px] font-mono text-red-400">
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Summary */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Key Takeaway / Summary <span className="text-primary">*</span>
                 </label>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Display Order (Lower is first)</label>
-                <input type="number" {...register("order", { valueAsNumber: true })} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary" />
-              </div>
-            </div>
-          </Section>
-
-          <Section title="References">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">GitHub URL</label>
-                <input {...register("githubUrl")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary text-sm" />
-                {errors.githubUrl && <p className="text-red-400 text-xs">{errors.githubUrl.message}</p>}
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Related Certificate ID (Optional)</label>
-                <input {...register("relatedCertificate")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary text-sm font-mono" />
+                <textarea
+                  rows={3}
+                  placeholder="Concise summary of what was accomplished and internal mental models built..."
+                  {...register("summary")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 leading-relaxed font-body"
+                />
+                {errors.summary && (
+                  <p className="text-[11px] font-mono text-red-400">
+                    {errors.summary.message}
+                  </p>
+                )}
               </div>
             </div>
-          </Section>
+
+            {/* Deep-dive Learning Details */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-5">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                02 / Structured Learnings & Insights
+              </h3>
+
+              {/* What I Learned */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  What I Learned & Understood
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Key conceptual breakthroughs, syntax patterns, or architectural principles..."
+                  {...register("learned")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
+                />
+              </div>
+
+              {/* What I Built / Practiced */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  What I Built / Code Written
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Specific scripts, experiments, repositories, or algorithms implemented..."
+                  {...register("built")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Problems Encountered */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Problems & Edge Cases
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Bugs, confusion, or conceptual bottlenecks..."
+                    {...register("problems")}
+                    className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
+                  />
+                </div>
+
+                {/* How I Solved It */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    How It Was Solved
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Debugging steps, docs consulted, or solution implemented..."
+                    {...register("solved")}
+                    className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
+                  />
+                </div>
+              </div>
+
+              {/* Next Step */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Next Step / Immediate Target
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Implement multi-branch conflict resolution and cherry-picking"
+                  {...register("nextStep")}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                />
+              </div>
+            </div>
+
+            {/* Media Attachment */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                03 / Screenshot or Diagram
+              </h3>
+
+              <MediaPicker
+                value={mediaList[0]?.url || ""}
+                onChange={(url) => {
+                  setValue(
+                    "media",
+                    url
+                      ? [{ url, mimeType: "image/png", alt: titleValue, order: 0 }]
+                      : [],
+                    { shouldDirty: true }
+                  );
+                }}
+                accept="image/*"
+              />
+            </div>
+          </div>
+
+          {/* Right Sidebar (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Metadata & Publishing */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                Log Settings
+              </h3>
+
+              {/* Order */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  {...register("order", { valueAsNumber: true })}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-mono text-text-primary focus:outline-none focus:border-primary/50"
+                />
+              </div>
+
+              {/* GitHub Link */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Code Repo / Commit Link
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/..."
+                  {...register("githubUrl")}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                />
+                {errors.githubUrl && (
+                  <p className="text-[10.5px] font-mono text-red-400">
+                    {errors.githubUrl.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Featured Checkbox */}
+              <label className="flex items-center gap-2.5 pt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  {...register("featured")}
+                  className="w-4 h-4 rounded border-border/70 bg-white/5 text-primary accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-medium text-text-primary">
+                  Highlight as Key Milestone
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

@@ -1,43 +1,53 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { ColumnDef } from "@tanstack/react-table";
 import { milestonesApi } from "@/lib/api";
 import { Milestone } from "@/types";
-import { Plus, Edit2, Trash2, Eye, EyeOff, Search } from "lucide-react";
+import { Plus, Filter, ChevronDown, Flag, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-
-const STATUS_CFG: Record<string, { label: string; cls: string; dot: string }> = {
-  completed:    { label: "Completed",   cls: "status-completed", dot: "bg-success" },
-  "in-progress":{ label: "In Progress", cls: "status-progress",  dot: "bg-primary" },
-  planned:      { label: "Planned",     cls: "status-planned",   dot: "bg-border" },
-};
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminButton } from "@/components/admin/ui/AdminButton";
+import { AdminBadge } from "@/components/admin/ui/AdminBadge";
+import { AdminDataTable } from "@/components/admin/ui/AdminDataTable";
+import { AdminRowActions } from "@/components/admin/ui/AdminRowActions";
 
 export default function AdminMilestonesPage() {
-  const [milestones, setMilestones]   = useState<Milestone[]>([]);
-  const [isLoading, setIsLoading]     = useState(true);
-  const [search, setSearch]           = useState("");
-  const [togglingId, setTogglingId]   = useState<string | null>(null);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [pendingId, setPendingId]     = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [pendingTitle, setPendingTitle] = useState("");
 
-  const fetch = useCallback(async () => {
+  const fetchMilestones = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
+
     try {
-      setIsLoading(true);
       const res = await milestonesApi.getAllAdmin();
-      setMilestones(res.data.data);
-    } catch { toast.error("Failed to fetch milestones"); }
-    finally  { setIsLoading(false); }
+      setMilestones(res.data.data || []);
+    } catch {
+      toast.error("Failed to fetch milestones");
+    } finally {
+      setIsLoading(false);
+      if (isManualRefresh) setIsRefreshing(false);
+    }
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    fetchMilestones();
+  }, [fetchMilestones]);
 
   const requestDelete = (id: string, title: string) => {
-    setPendingId(id); setPendingTitle(title); setConfirmOpen(true);
+    setPendingId(id);
+    setPendingTitle(title);
+    setConfirmOpen(true);
   };
 
   const handleDelete = async () => {
@@ -46,165 +56,265 @@ export default function AdminMilestonesPage() {
     try {
       await milestonesApi.delete(pendingId);
       toast.success("Milestone deleted");
-      fetch();
-    } catch { toast.error("Failed to delete milestone"); }
-    finally  { setConfirmLoading(false); setPendingId(null); setPendingTitle(""); }
+      fetchMilestones();
+    } catch {
+      toast.error("Failed to delete milestone");
+    } finally {
+      setConfirmLoading(false);
+      setPendingId(null);
+      setPendingTitle("");
+    }
   };
 
-  const handleToggle = async (m: Milestone) => {
-    setTogglingId(m._id);
+  const handleTogglePublish = async (m: Milestone) => {
     try {
       await milestonesApi.update(m._id, { published: !m.published });
       toast.success(m.published ? "Milestone hidden" : "Milestone published");
-      fetch();
-    } catch { toast.error("Failed to update milestone"); }
-    finally  { setTogglingId(null); }
+      setMilestones((prev) =>
+        prev.map((item) =>
+          item._id === m._id ? { ...item, published: !item.published } : item
+        )
+      );
+    } catch {
+      toast.error("Failed to update milestone");
+    }
   };
 
-  // Sort: completed → in-progress → planned, then by date
-  const filtered = milestones
-    .filter(m => !search || m.title.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      const order: Record<string, number> = { completed: 0, "in-progress": 1, planned: 2 };
-      if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
-      return a.order - b.order;
+  const filteredData = useMemo(() => {
+    return milestones.filter((m) => {
+      if (statusFilter !== "all" && m.status !== statusFilter) return false;
+      return true;
     });
+  }, [milestones, statusFilter]);
 
-  const completed    = filtered.filter(m => m.status === "completed");
-  const inProgress   = filtered.filter(m => m.status === "in-progress");
-  const planned      = filtered.filter(m => m.status === "planned");
+  const columns = useMemo<ColumnDef<Milestone>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all"
+          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "title",
+      header: "Milestone",
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="min-w-[220px] space-y-0.5">
+            <Link
+              href={`/admin/milestones/${m._id}/edit`}
+              className="font-clash font-semibold text-text-primary hover:text-primary transition-colors text-[13px] truncate block"
+            >
+              {m.title}
+            </Link>
+            {m.description && (
+              <p className="text-[11px] text-text-muted line-clamp-1 leading-tight">
+                {m.description}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <AdminBadge variant={row.original.status as any} dot>
+          {row.original.status}
+        </AdminBadge>
+      ),
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => (
+        <span className="text-text-secondary font-mono text-[11px] capitalize">
+          {row.original.category || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => {
+        if (!row.original.date) return <span className="text-text-muted font-mono text-[11px]">—</span>;
+        const date = new Date(row.original.date).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        return <span className="text-text-muted font-mono text-[11px]">{date}</span>;
+      },
+    },
+    {
+      accessorKey: "order",
+      header: "Order",
+      cell: ({ row }) => (
+        <span className="font-mono text-[11px] text-text-muted">
+          #{row.original.order}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "published",
+      header: "Visibility",
+      cell: ({ row }) => (
+        <AdminBadge variant={row.original.published ? "published" : "draft"}>
+          {row.original.published ? "Live" : "Draft"}
+        </AdminBadge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="text-right">
+            <AdminRowActions
+              editHref={`/admin/milestones/${m._id}/edit`}
+              previewHref="/milestones"
+              isPublished={m.published}
+              onTogglePublish={() => handleTogglePublish(m)}
+              onDelete={() => requestDelete(m._id, m.title)}
+            />
+          </div>
+        );
+      },
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ], []);
+
+  const filterControls = (
+    <div className="relative">
+      <Filter
+        size={12}
+        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+      />
+      <select
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value)}
+        className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-7.5 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+      >
+        <option value="all">All Status</option>
+        <option value="completed">Completed</option>
+        <option value="in-progress">In Progress</option>
+        <option value="planned">Planned</option>
+      </select>
+      <ChevronDown
+        size={12}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+      />
+    </div>
+  );
 
   return (
-    <div className="space-y-7 pb-14">
+    <div className="space-y-6 pb-14">
       <ConfirmDialog
-        open={confirmOpen} onOpenChange={setConfirmOpen}
-        title="Delete milestone?" description={`"${pendingTitle}" will be permanently deleted.`}
-        confirmLabel="Delete" onConfirm={handleDelete} isLoading={confirmLoading}
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete milestone?"
+        description={`"${pendingTitle}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        isLoading={confirmLoading}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-mono text-text-muted tracking-widest uppercase mb-2">06 / Milestones</p>
-          <h1 className="text-2xl font-clash font-bold text-text-primary">Milestones</h1>
-          <p className="text-sm text-text-secondary mt-1">Progress markers along your development journey.</p>
-        </div>
-        <Link href="/admin/milestones/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-bg text-sm font-semibold font-clash rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all w-fit">
-          <Plus size={15} /> New Milestone
-        </Link>
-      </div>
+      {/* ── Standardized Header ───────────────────────────────── */}
+      <AdminPageHeader
+        eyebrow="02 / CONTENT"
+        title="Key Milestones"
+        stats={`${milestones.length} Milestones · ${milestones.filter((m) => m.published).length} Live · ${milestones.filter((m) => !m.published).length} Drafts`}
+        description="Key engineering, education, and career milestones tracked across your timeline."
+        actions={
+          <Link href="/admin/milestones/new">
+            <AdminButton variant="primary" icon={<Plus size={15} />}>
+              New Milestone
+            </AdminButton>
+          </Link>
+        }
+      />
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 min-w-48 max-w-72">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input type="text" placeholder="Search milestones…" value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/[0.03] border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/40 transition-colors"
-          />
-        </div>
-        {!isLoading && (
-          <div className="ml-auto flex items-center gap-3 text-[11px] font-mono text-text-muted">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />{completed.length} done</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />{inProgress.length} active</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-border inline-block" />{planned.length} planned</span>
+      {/* ── TanStack Admin Data Table ─────────────────────────── */}
+      <AdminDataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        searchPlaceholder="Search milestones by title, category…"
+        filterControls={filterControls}
+        enableSelection={true}
+        enableColumnVisibility={true}
+        enablePagination={true}
+        pageSize={25}
+        onRefresh={() => fetchMilestones(true)}
+        isRefreshing={isRefreshing}
+        emptyTitle="No milestones found"
+        emptyDescription="Define the key milestones and achievements you're working toward."
+        emptyActionLabel="Add Milestone"
+        emptyActionIcon={<Plus size={14} />}
+        onEmptyAction={() => {
+          window.location.href = "/admin/milestones/new";
+        }}
+        renderMobileCard={(m) => (
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <AdminBadge variant={m.status as any} dot>
+                  {m.status}
+                </AdminBadge>
+                {m.category && (
+                  <span className="text-[10px] font-mono text-text-muted capitalize">
+                    {m.category}
+                  </span>
+                )}
+                <AdminBadge variant={m.published ? "published" : "draft"}>
+                  {m.published ? "Live" : "Draft"}
+                </AdminBadge>
+              </div>
+
+              <Link
+                href={`/admin/milestones/${m._id}/edit`}
+                className="font-clash font-semibold text-text-primary hover:text-primary transition-colors text-sm truncate block pt-0.5"
+              >
+                {m.title}
+              </Link>
+
+              {m.description && (
+                <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
+                  {m.description}
+                </p>
+              )}
+            </div>
+
+            <AdminRowActions
+              editHref={`/admin/milestones/${m._id}/edit`}
+              previewHref="/milestones"
+              isPublished={m.published}
+              onTogglePublish={() => handleTogglePublish(m)}
+              onDelete={() => requestDelete(m._id, m.title)}
+            />
           </div>
         )}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1,2,3,4].map(i => <div key={i} className="admin-skeleton rounded-xl h-16" />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-[#0f0f0f] border border-border/60 rounded-xl p-12 text-center space-y-4">
-          <p className="text-[11px] font-mono text-text-muted uppercase tracking-widest">{search ? "No results" : "No milestones yet"}</p>
-          <p className="text-sm text-text-secondary max-w-xs mx-auto leading-relaxed">
-            {search ? "Try a different search term." : "Define the key achievements you're working toward."}
-          </p>
-          {!search && (
-            <Link href="/admin/milestones/new" className="inline-flex items-center gap-1.5 text-xs font-mono text-primary uppercase tracking-wider">
-              <Plus size={11} /> Add milestone
-            </Link>
-          )}
-        </div>
-      ) : (
-        /* Progress timeline */
-        <div className="relative">
-          {/* Vertical spine */}
-          <div className="absolute left-4 top-5 bottom-5 w-px bg-gradient-to-b from-border/80 via-border/40 to-transparent" aria-hidden />
-
-          <div className="space-y-2 pl-12">
-            {filtered.map((m, idx) => {
-              const cfg  = STATUS_CFG[m.status] ?? STATUS_CFG.planned;
-              const date = m.date
-                ? new Date(m.date as string).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                : null;
-
-              return (
-                <motion.div
-                  key={m._id}
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.04 }}
-                  className="group relative"
-                >
-                  {/* Timeline node */}
-                  <div className={`absolute -left-8 top-4 w-3 h-3 rounded-full border-2 border-[#0f0f0f] ${cfg.dot} transition-all group-hover:scale-125`} />
-
-                  <div className={`bg-[#0f0f0f] border rounded-xl px-5 py-4 transition-all ${
-                    m.status === "in-progress"
-                      ? "border-primary/25 shadow-[0_0_0_1px_rgba(232,197,71,0.04)]"
-                      : "border-border/60 hover:border-border card-hover-glow"
-                  }`}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${cfg.cls}`}>
-                            {cfg.label}
-                          </span>
-                          {m.category && (
-                            <span className="text-[10px] font-mono text-text-muted">{m.category}</span>
-                          )}
-                          {date && (
-                            <span className="text-[10px] font-mono text-text-muted">{date}</span>
-                          )}
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${
-                            m.published ? "status-published" : "status-draft"
-                          }`}>
-                            {m.published ? "Pub" : "Draft"}
-                          </span>
-                        </div>
-                        <h3 className={`text-sm font-clash font-semibold leading-snug transition-colors ${
-                          m.status === "in-progress" ? "text-primary" : "text-text-primary group-hover:text-primary"
-                        }`}>
-                          {m.title}
-                        </h3>
-                        {m.description && (
-                          <p className="text-xs text-text-muted mt-1 leading-relaxed line-clamp-2">{m.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={() => handleToggle(m)} disabled={togglingId === m._id}
-                          title={m.published ? "Unpublish" : "Publish"}
-                          className={`p-1.5 rounded-md transition-all disabled:opacity-50 ${m.published ? "text-success hover:text-yellow-400 hover:bg-yellow-400/10" : "text-text-muted hover:text-success hover:bg-success/10"}`}>
-                          {togglingId === m._id ? <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : m.published ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                        <Link href={`/admin/milestones/${m._id}/edit`} title="Edit"
-                          className="p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-md transition-all">
-                          <Edit2 size={14} />
-                        </Link>
-                        <button onClick={() => requestDelete(m._id, m.title)} title="Delete"
-                          className="p-1.5 text-text-muted hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      />
     </div>
   );
 }

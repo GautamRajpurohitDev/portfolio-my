@@ -1,28 +1,52 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { projectsApi } from "@/lib/api";
 import { Project } from "@/types";
 import toast from "react-hot-toast";
-import { X, Plus, Trash2, Save, Eye, Upload, Check } from "lucide-react";
+import {
+  X,
+  Plus,
+  Trash2,
+  Save,
+  Globe,
+  Upload,
+  Check,
+  Sparkles,
+  Link2,
+  FolderKanban,
+  FileCode2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Composer } from "@/components/admin/composer/Composer";
+import { AdminEditorHeader, SaveState } from "@/components/admin/ui/AdminEditorHeader";
+import { DraftRecoveryBanner } from "@/components/admin/ui/DraftRecoveryBanner";
+import { useDraftRecovery } from "@/hooks/useDraftRecovery";
+import { MediaPicker } from "@/components/admin/media/MediaPicker";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
-  slug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, hyphens only").optional().or(z.literal("")),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, hyphens only")
+    .optional()
+    .or(z.literal("")),
   shortDescription: z.string().min(1, "Short description is required").max(300),
   content: z.string().optional().default(""),
-  media: z.array(z.object({
-    url: z.string(),
-    mimeType: z.string(),
-    alt: z.string().optional().default(""),
-    order: z.number().int().optional().default(0),
-  })).optional().default([]),
+  media: z
+    .array(
+      z.object({
+        url: z.string(),
+        mimeType: z.string(),
+        alt: z.string().optional().default(""),
+        order: z.number().int().optional().default(0),
+      })
+    )
+    .optional()
+    .default([]),
   problem: z.string().optional().default(""),
   solution: z.string().optional().default(""),
   architecture: z.string().optional().default(""),
@@ -30,7 +54,7 @@ const projectSchema = z.object({
   challenges: z.string().optional().default(""),
   lessonsLearned: z.string().optional().default(""),
   status: z.enum(["idea", "in-progress", "completed", "archived"]).default("idea"),
-  category: z.string().optional().default("other"),
+  category: z.string().optional().default("web"),
   technologies: z.array(z.string()).default([]),
   featured: z.boolean().default(false),
   published: z.boolean().default(false),
@@ -47,6 +71,10 @@ interface ProjectFormProps {
 
 export default function ProjectForm({ project }: ProjectFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
+    project ? new Date(project.updatedAt || project.createdAt) : null
+  );
   const router = useRouter();
 
   const {
@@ -55,6 +83,8 @@ export default function ProjectForm({ project }: ProjectFormProps) {
     handleSubmit,
     watch,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema) as any,
@@ -72,11 +102,11 @@ export default function ProjectForm({ project }: ProjectFormProps) {
           challenges: project.challenges || "",
           lessonsLearned: project.lessonsLearned || "",
           status: project.status,
-          category: project.category,
-          technologies: project.technologies,
+          category: project.category || "web",
+          technologies: project.technologies?.length ? project.technologies : [""],
           featured: project.featured,
           published: project.published,
-          order: project.order,
+          order: project.order || 0,
           githubUrl: project.githubUrl || "",
           liveUrl: project.liveUrl || "",
         }
@@ -92,8 +122,8 @@ export default function ProjectForm({ project }: ProjectFormProps) {
           features: "",
           challenges: "",
           lessonsLearned: "",
-          status: "idea",
-          category: "other",
+          status: "in-progress",
+          category: "web",
           technologies: [""],
           featured: false,
           published: false,
@@ -109,167 +139,285 @@ export default function ProjectForm({ project }: ProjectFormProps) {
   });
 
   const isPublished = watch("published");
-  const [submitAction, setSubmitAction] = useState<"draft" | "publish">("draft");
-  const isDraft = (project as any)?._isDraft === true;
+  const titleValue = watch("title");
+  const slugValue = watch("slug");
+  const mediaList = watch("media") || [];
 
-  const onSubmit = async (data: ProjectFormData) => {
-    if (submitAction === "publish" && project) {
-      if (!window.confirm("Publish these changes to the live site?")) {
-        return;
-      }
+  // Update saveState when dirty
+  useEffect(() => {
+    if (isDirty && saveState === "saved") {
+      setSaveState("unsaved");
     }
+  }, [isDirty, saveState]);
+
+  // Draft Recovery hook
+  const { hasRecoverableDraft, restoreDraft, discardDraft, clearDraftBackup } =
+    useDraftRecovery<ProjectFormData>({
+      storageKey: `project_${project?._id || "new"}`,
+      isDirty,
+      getValues,
+      resetForm: reset,
+      serverUpdatedAt: project?.updatedAt,
+      onSaveShortcut: () => handleSave(false),
+    });
+
+  // Core save function
+  const handleSave = async (shouldPublish?: boolean) => {
+    const formData = getValues();
+    const isPublishAction =
+      shouldPublish !== undefined ? shouldPublish : isPublished;
 
     setIsSubmitting(true);
+    setSaveState("saving");
+
     try {
-      const submitData: any = { ...data };
+      const submitData: any = { ...formData, published: isPublishAction };
       if (!submitData.githubUrl) delete submitData.githubUrl;
       if (!submitData.liveUrl) delete submitData.liveUrl;
       if (!submitData.slug) delete submitData.slug;
-      
-      submitData.technologies = submitData.technologies.filter((t: string) => t.trim() !== "");
+      submitData.technologies = (submitData.technologies || []).filter(
+        (t: string) => t.trim() !== ""
+      );
 
-      const currentProject = project;
-
-      if (currentProject) {
-        if ((currentProject as any)._isDraft) {
-          await projectsApi.update(project!._id, submitData, submitAction);
-          toast.success(submitAction === "publish" ? "Project published" : "Draft saved");
-        } else {
-          await projectsApi.update(project!._id, submitData, submitAction);
-          toast.success("Project updated successfully");
-        }
+      if (project?._id) {
+        await projectsApi.update(
+          project._id,
+          submitData,
+          isPublishAction ? "publish" : "draft"
+        );
+        toast.success(isPublishAction ? "Project published to live" : "Draft saved");
       } else {
-        await projectsApi.create(submitData);
+        const res = await projectsApi.create(submitData);
         toast.success("Project created successfully");
+        clearDraftBackup();
+        router.push(`/admin/projects/${res.data.data._id}/edit`);
+        return;
       }
-      
-      // Redirect back to list
-      router.push("/admin/projects");
-      router.refresh();
+
+      clearDraftBackup();
+      setValue("published", isPublishAction, { shouldDirty: false });
+      reset(formData);
+      setSaveState("saved");
+      setLastSavedAt(new Date());
     } catch (error: any) {
+      setSaveState("failed");
       toast.error(error.response?.data?.message || "Failed to save project");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
-    <div className="bg-bg-card border border-border rounded-xl p-6 space-y-6">
-      <h3 className="text-sm font-semibold tracking-widest text-text-secondary uppercase border-b border-border pb-4 mb-4">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 max-w-5xl">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold font-clash text-text-primary">
-              {project ? "Edit Project" : "New Project"}
-            </h1>
-            {isDraft && <span className="px-2 py-0.5 rounded text-xs font-mono bg-primary/10 text-primary">DRAFT</span>}
-          </div>
-          {isDirty && <p className="text-sm text-yellow-500 mt-1">Unsaved changes</p>}
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            type="button" 
-            onClick={() => router.push("/admin/projects")} 
-            className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors text-sm font-medium"
-          >
-            Cancel
-          </button>
-          
-          {project && (
-            <Link 
-              href={`/projects/${project.slug}?preview=true`} 
-              target="_blank"
-              className="px-4 py-2 bg-white/5 border border-border text-text-primary hover:bg-white/10 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
-            >
-              <Eye size={16} /> Preview
-            </Link>
-          )}
+    <div className="space-y-6 pb-20">
+      {/* ── Editor Header ─────────────────────────────────────── */}
+      <AdminEditorHeader
+        backHref="/admin/projects"
+        backLabel="Projects"
+        breadcrumb={project ? "PROJECTS / EDIT" : "PROJECTS / CREATE"}
+        title={titleValue || "New Project"}
+        isPublished={isPublished}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        previewHref={slugValue ? `/projects/${slugValue}` : undefined}
+        onSaveDraft={() => handleSave(false)}
+        onPublish={() => handleSave(true)}
+        onUnpublish={isPublished ? () => handleSave(false) : undefined}
+        isSubmitting={isSubmitting}
+      />
 
-          <button
-            type="submit"
-            onClick={() => setSubmitAction("draft")}
-            disabled={isSubmitting || (!isDirty && !isDraft)}
-            className="px-4 py-2 bg-white/5 border border-border/60 text-text-primary text-sm font-medium rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
-          >
-            Save Draft
-          </button>
+      {/* ── Draft Recovery Notification ───────────────────────── */}
+      {hasRecoverableDraft && (
+        <DraftRecoveryBanner onRestore={restoreDraft} onDiscard={discardDraft} />
+      )}
 
-          <button 
-            type="submit"
-            onClick={() => setSubmitAction("publish")}
-            disabled={isSubmitting || !isDirty} 
-            className="px-6 py-2 bg-primary text-bg font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 text-sm hover:bg-primary/90"
-          >
-            {isSubmitting ? (
-              <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <Save size={16} />
-            )}
-            Publish
-          </button>
-        </div>
-      </div>
+      {/* ── Form Body (2-Column Desktop / 1-Column Mobile) ────── */}
+      <form onSubmit={handleSubmit(() => handleSave())} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Main Column: Content & Case Study (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Basic Information Panel */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-5">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                01 / Basic Information
+              </h3>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Basic Information */}
-          <Section title="Basic Information">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Project Title *</label>
-                <input {...register("title")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors" />
-                {errors.title && <p className="text-red-400 text-xs">{errors.title.message}</p>}
+              {/* Title */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Project Title <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Inflow — Fluid Animation Engine"
+                  {...register("title")}
+                  className="w-full h-10 bg-white/[0.03] border border-border/70 rounded-lg px-3.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body"
+                />
+                {errors.title && (
+                  <p className="text-[11px] font-mono text-red-400">
+                    {errors.title.message}
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Short Description *</label>
-                <textarea {...register("shortDescription")} rows={2} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary transition-colors resize-none" />
-                {errors.shortDescription && <p className="text-red-400 text-xs">{errors.shortDescription.message}</p>}
+              {/* Slug */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  URL Slug (optional)
+                </label>
+                <div className="flex items-center">
+                  <span className="h-10 px-3 flex items-center bg-white/[0.02] border border-r-0 border-border/70 rounded-l-lg text-xs font-mono text-text-muted">
+                    /projects/
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="inflow-engine"
+                    {...register("slug")}
+                    className="flex-1 h-10 bg-white/[0.03] border border-border/70 rounded-r-lg px-3.5 text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                </div>
+                {errors.slug && (
+                  <p className="text-[11px] font-mono text-red-400">
+                    {errors.slug.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Short Description */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Short Summary / Pitch <span className="text-primary">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Brief 1-2 sentence overview shown in project cards and previews..."
+                  {...register("shortDescription")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors leading-relaxed font-body"
+                />
+                {errors.shortDescription && (
+                  <p className="text-[11px] font-mono text-red-400">
+                    {errors.shortDescription.message}
+                  </p>
+                )}
               </div>
             </div>
-          </Section>
 
-          {/* Case Study */}
-          <Section title="Case Study & Content">
-            <Composer 
-              contentField="content" 
-              mediaField="media"
-              control={control}
-              watch={watch}
-              setValue={setValue as any}
-            />
-            {/* Legacy Fields Toggle (Optional if you want to keep them visible) */}
-          </Section>
-        </div>
+            {/* Media Gallery Panel */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                02 / Screenshots & Visual Assets
+              </h3>
 
-        <div className="space-y-6">
-          {/* Visibility & Organization */}
-          <Section title="Visibility & Status">
-            <div className="space-y-6">
-              <div className="flex flex-col gap-4">
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-sm font-medium text-text-primary">Publish Project</span>
-                  <input type="checkbox" {...register("published")} className="w-5 h-5 rounded border-border bg-black text-primary accent-primary" />
+              <div className="space-y-3">
+                <MediaPicker
+                  value={mediaList[0]?.url || ""}
+                  onChange={(url) => {
+                    setValue(
+                      "media",
+                      url
+                        ? [{ url, mimeType: "image/png", alt: titleValue, order: 0 }]
+                        : [],
+                      { shouldDirty: true }
+                    );
+                  }}
+                  accept="image/*,video/mp4"
+                />
+                <p className="text-[11px] font-mono text-text-muted">
+                  Select cover image or project demo video from your library.
+                </p>
+              </div>
+            </div>
+
+            {/* Case Study Details Panel */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-5">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                03 / Engineering Case Study
+              </h3>
+
+              {/* Problem */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  The Problem
                 </label>
-                <label className="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-sm font-medium text-text-primary">Featured Project</span>
-                  <input type="checkbox" {...register("featured")} className="w-5 h-5 rounded border-border bg-black text-primary accent-primary" />
-                </label>
+                <textarea
+                  rows={3}
+                  placeholder="What core architectural or UX challenge did this project aim to solve?"
+                  {...register("problem")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body leading-relaxed"
+                />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Project Status</label>
-                <select {...register("status")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary [&>option]:bg-[#0a0a0a]">
+              {/* Solution */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  The Solution & Approach
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="How was the problem solved? Key technical decisions and frameworks."
+                  {...register("solution")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body leading-relaxed"
+                />
+              </div>
+
+              {/* Architecture & Features */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Architecture & Stack
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Data flow, state management, storage, backend design..."
+                    {...register("architecture")}
+                    className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Key Features
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Core capabilities, benchmarks, standout features..."
+                    {...register("features")}
+                    className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body"
+                  />
+                </div>
+              </div>
+
+              {/* Lessons Learned */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Challenges & Lessons Learned
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Key takeaways, bugs resolved, architectural lessons..."
+                  {...register("lessonsLearned")}
+                  className="w-full bg-white/[0.03] border border-border/70 rounded-lg p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors font-body"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Settings & Metadata Sidebar (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Publishing & Status */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                Publishing & Status
+              </h3>
+
+              {/* Status */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Project Lifecycle
+                </label>
+                <select
+                  {...register("status")}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer capitalize"
+                >
                   <option value="idea">Idea</option>
                   <option value="in-progress">In Progress</option>
                   <option value="completed">Completed</option>
@@ -277,59 +425,130 @@ export default function ProjectForm({ project }: ProjectFormProps) {
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Display Order (Lower is first)</label>
-                <input type="number" {...register("order", { valueAsNumber: true })} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary" />
+              {/* Category */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Category
+                </label>
+                <select
+                  {...register("category")}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+                >
+                  <option value="web">Web Application</option>
+                  <option value="mobile">Mobile Application</option>
+                  <option value="systems">Systems & Backend</option>
+                  <option value="ai-ml">AI / Machine Learning</option>
+                  <option value="tools">Dev Tools / CLI</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
-              
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Category</label>
-                <input {...register("category")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary" />
+
+              {/* Display Order */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  {...register("order", { valueAsNumber: true })}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-mono text-text-primary focus:outline-none focus:border-primary/50"
+                />
               </div>
-              
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Slug Override (Optional)</label>
-                <input {...register("slug")} placeholder="Auto-generated if empty" className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary text-sm font-mono" />
-                {errors.slug && <p className="text-red-400 text-xs">{errors.slug.message}</p>}
+
+              {/* Featured Checkbox */}
+              <label className="flex items-center gap-2.5 pt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  {...register("featured")}
+                  className="w-4 h-4 rounded border-border/70 bg-white/5 text-primary accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-medium text-text-primary">
+                  Feature on Homepage
+                </span>
+              </label>
+            </div>
+
+            {/* Links & Repository */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-4">
+              <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary border-b border-border/40 pb-2">
+                External Links
+              </h3>
+
+              {/* GitHub */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  GitHub Repository
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/..."
+                  {...register("githubUrl")}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                />
+                {errors.githubUrl && (
+                  <p className="text-[10.5px] font-mono text-red-400">
+                    {errors.githubUrl.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Live URL */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Live URL / Demo
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  {...register("liveUrl")}
+                  className="w-full h-9 bg-white/[0.03] border border-border/70 rounded-lg px-3 text-xs font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                />
+                {errors.liveUrl && (
+                  <p className="text-[10.5px] font-mono text-red-400">
+                    {errors.liveUrl.message}
+                  </p>
+                )}
               </div>
             </div>
-          </Section>
 
-          {/* Technical */}
-          <Section title="Technical Details">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">GitHub URL</label>
-                <input {...register("githubUrl")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary" />
-                {errors.githubUrl && <p className="text-red-400 text-xs">{errors.githubUrl.message}</p>}
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-text-secondary">Live URL</label>
-                <input {...register("liveUrl")} className="w-full bg-white/5 border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary" />
-                {errors.liveUrl && <p className="text-red-400 text-xs">{errors.liveUrl.message}</p>}
-              </div>
-              
-              <div className="space-y-2 pt-2">
-                <label className="text-sm font-medium text-text-secondary">Tech Stack</label>
-                <div className="space-y-2">
-                  {techFields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2">
-                      <input {...register(`technologies.${index}`)} className="flex-1 bg-white/5 border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:border-primary text-sm" placeholder="e.g. Next.js" />
-                      <button type="button" onClick={() => removeTech(index)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button type="button" onClick={() => appendTech("")} className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors mt-2">
-                  <Plus size={16} /> Add Tech
+            {/* Technologies */}
+            <div className="p-6 rounded-2xl bg-[#101010] border border-border/70 space-y-3">
+              <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                <h3 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-primary">
+                  Tech Stack
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => appendTech("")}
+                  className="inline-flex items-center gap-1 text-[11px] font-mono text-primary hover:underline cursor-pointer"
+                >
+                  <Plus size={11} /> Add
                 </button>
               </div>
+
+              <div className="space-y-2">
+                {techFields.map((field, index) => (
+                  <div key={field.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Next.js, Rust, Docker"
+                      {...register(`technologies.${index}` as const)}
+                      className="flex-1 h-8 bg-white/[0.03] border border-border/70 rounded-lg px-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeTech(index)}
+                      className="p-1 text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </Section>
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

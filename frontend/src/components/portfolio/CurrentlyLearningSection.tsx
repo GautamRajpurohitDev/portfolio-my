@@ -2,7 +2,7 @@
 
 import { SlideUp } from "@/components/motion/MotionPrimitives";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export interface CurrentlyLearningConfig {
@@ -20,12 +20,9 @@ interface CurrentlyLearningSectionProps {
 export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionProps) {
   if (!config) return null;
 
-  // ── Defensive numeric coercion — prevents NaN / undefined rendering ──
   const rawProgress = Number(config.progress ?? 0);
   const progress = Math.min(100, Math.max(0, isNaN(rawProgress) ? 0 : rawProgress));
   const progressRounded = Math.round(progress);
-  const filledBlocks = Math.floor(progress / 5); // out of 20
-  const emptyBlocks = 20 - filledBlocks;
 
   return (
     <section
@@ -37,157 +34,92 @@ export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionPro
 
         {/* Label */}
         <SlideUp>
-          <span className="label-meta block mb-12">02 / Learning</span>
+          <span className="label-meta block mb-12 text-accent">02 / Current Learning</span>
         </SlideUp>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
 
-          {/* ── LEFT — Current topic + progress ─────────────── */}
-          <div className="lg:col-span-7">
+          {/* ── LEFT — Integrated Skill + Progress Block ─────── */}
+          <div className="lg:col-span-7 flex flex-col justify-between">
+            <div>
+              <SlideUp delay={0.04}>
+                <div className="flex items-center gap-2.5 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <span className="font-mono text-xs uppercase tracking-widest text-accent">
+                    FOUNDATION IN PROGRESS
+                  </span>
+                </div>
+              </SlideUp>
 
-            <SlideUp delay={0.04}>
-              <h2
-                id="learning-heading"
-                className="font-display font-bold leading-none tracking-tighter text-text-secondary mb-1 uppercase"
-                style={{ fontSize: "clamp(36px, 5vw, 60px)" }}
-              >
-                CURRENTLY
-              </h2>
-            </SlideUp>
-            <SlideUp delay={0.08}>
-              <h2
-                className="font-display font-bold leading-none tracking-tighter text-text-primary mb-10 uppercase"
-                style={{ fontSize: "clamp(36px, 5vw, 60px)" }}
-              >
-                LEARNING
-              </h2>
-            </SlideUp>
+              {/* Topic Name + Integrated Percentage */}
+              <SlideUp delay={0.08}>
+                <div className="flex items-baseline justify-between gap-6 mb-6">
+                  <h2
+                    id="learning-heading"
+                    className="font-display font-bold tracking-tighter text-text-primary uppercase"
+                    style={{ fontSize: "clamp(38px, 5.5vw, 68px)", lineHeight: 0.95 }}
+                  >
+                    {config.primary || "Git & GitHub"}
+                  </h2>
+                  <span
+                    className="font-display font-bold text-accent tabular-nums shrink-0"
+                    style={{ fontSize: "clamp(32px, 4.5vw, 56px)", lineHeight: 1 }}
+                  >
+                    {progressRounded}%
+                  </span>
+                </div>
+              </SlideUp>
 
-            {/* Topic name */}
-            <SlideUp delay={0.12}>
-              <div className="flex items-center gap-4 mb-8">
-                <span
-                  className="font-display font-bold text-accent leading-none tracking-tighter"
-                  style={{ fontSize: "clamp(36px, 5.5vw, 72px)" }}
-                >
-                  {config.primary || "—"}
-                </span>
-                <BookOpen
-                  size={28}
-                  strokeWidth={1}
-                  className="text-accent opacity-50 hidden lg:block shrink-0 mt-1"
-                />
-              </div>
-            </SlideUp>
-
-            {/* Description */}
-            {config.description && (
-              <SlideUp delay={0.16}>
-                <p className="text-[17px] lg:text-[19px] text-text-secondary leading-relaxed mb-12 max-w-lg">
-                  {config.description}
+              {/* Description */}
+              <SlideUp delay={0.12}>
+                <p className="text-[16px] sm:text-[18px] text-text-secondary leading-relaxed mb-8 max-w-xl font-body">
+                  {config.description ||
+                    "Mastering version control from first principles — branching models, interactive rebasing, commit semantics, and collaborative workflows."}
                 </p>
               </SlideUp>
-            )}
 
-            {/* ── PROGRESS ──────────────────────────────────── */}
-            <SlideUp delay={0.2}>
-              <div>
-                {/* Status badge */}
-                <div className="flex items-center gap-3 mb-5">
-                  <span className="flex items-center gap-1.5 font-mono text-[11px] tracking-widest uppercase text-accent">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-accent animate-[pulseAccent_2s_ease-in-out_infinite]"
-                      aria-hidden
-                    />
-                    IN PROGRESS
-                  </span>
-                </div>
-
-                {/* Large percentage number */}
-                <div className="flex items-baseline gap-2 mb-5">
-                  <span
-                    className="font-display font-bold text-text-primary leading-none tracking-tighter tabular-nums"
-                    style={{ fontSize: "clamp(72px, 10vw, 120px)" }}
-                    aria-label={`${progressRounded}% complete`}
-                  >
-                    {progressRounded}
-                  </span>
-                  <span
-                    className="font-display font-bold text-text-secondary"
-                    style={{ fontSize: "clamp(32px, 4vw, 52px)" }}
-                    aria-hidden
-                  >
-                    %
-                  </span>
-                </div>
-
-                {/* Animated CSS fill bar */}
-                <div
-                  className="w-full h-[3px] bg-border rounded-full overflow-hidden mb-4"
-                  role="progressbar"
-                  aria-valuenow={progressRounded}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${progressRounded}% progress`}
-                >
+              {/* Integrated Progress Line */}
+              <SlideUp delay={0.16}>
+                <div className="w-full h-1.5 bg-border-muted rounded-full overflow-hidden mb-3">
                   <ProgressFill progress={progress} />
                 </div>
-
-                {/* Monospace decorative bar */}
-                <span
-                  className="font-mono text-[12px] text-text-tertiary tracking-[0.12em] select-none"
-                  aria-hidden="true"
-                >
-                  {"█".repeat(filledBlocks)}{"░".repeat(emptyBlocks)}
-                </span>
-              </div>
-            </SlideUp>
+                <div className="flex items-center justify-between text-[11px] font-mono text-text-tertiary">
+                  <span>PHASE 00: DEVELOPMENT WORKFLOW</span>
+                  <span>{progressRounded}% VERIFIED MASTERY</span>
+                </div>
+              </SlideUp>
+            </div>
           </div>
 
-          {/* ── RIGHT — Up Next + Roadmap ─────────────────── */}
-          <div className="lg:col-span-5 flex flex-col justify-center mt-4 lg:mt-0">
-            <SlideUp delay={0.28}>
-              <div className="bg-bg border border-border rounded-2xl p-8 lg:p-10 relative overflow-hidden">
-
-                {/* Decorative top accent */}
-                <div
-                  className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent"
-                  aria-hidden
-                />
-
-                <h3 className="label-meta mb-8">Up Next</h3>
-
-                {config.next && (
-                  <div className="mb-10">
-                    <p className="font-mono text-[11px] tracking-widest uppercase text-text-tertiary mb-2">
-                      Immediate Focus
-                    </p>
-                    <p
-                      className="font-display font-bold text-text-primary leading-none tracking-tight"
-                      style={{ fontSize: "clamp(22px, 2.5vw, 30px)" }}
-                    >
-                      {config.next}
-                    </p>
-                  </div>
-                )}
+          {/* ── RIGHT — Up Next & Path ───────────────────────── */}
+          <div className="lg:col-span-5 flex flex-col justify-center">
+            <SlideUp delay={0.2}>
+              <div className="border-t lg:border-t-0 lg:border-l border-border pt-8 lg:pt-0 lg:pl-12">
+                <div className="mb-8">
+                  <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary block mb-2">
+                    Up Next On Curriculum
+                  </span>
+                  <p className="font-display font-bold text-2xl sm:text-3xl text-text-primary tracking-tight">
+                    {config.next || "Pseudocode & C Foundations"}
+                  </p>
+                </div>
 
                 {config.roadmap?.length > 0 && (
                   <div>
-                    <p className="font-mono text-[11px] tracking-widest uppercase text-text-tertiary mb-5">
-                      Learning Path
-                    </p>
-                    <ol className="space-y-3" aria-label="Learning roadmap">
-                      {config.roadmap.map((item, i) => (
-                        <li key={item} className="flex items-center gap-3">
-                          <span
-                            className="font-mono text-[11px] text-text-tertiary w-5 shrink-0 tabular-nums"
-                            aria-hidden
-                          >
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary block mb-4">
+                      Sequential Roadmap
+                    </span>
+                    <ol className="divide-y divide-border/60" aria-label="Learning roadmap sequence">
+                      {config.roadmap.slice(0, 4).map((item, i) => (
+                        <li key={item} className="py-2.5 flex items-center justify-between gap-3 text-[13.5px]">
+                          <span className="font-mono text-[11px] text-text-tertiary tabular-nums">
                             {String(i + 1).padStart(2, "0")}
                           </span>
-                          <div className="flex-1 h-px bg-border-muted" aria-hidden />
-                          <span className="text-[13px] text-text-secondary font-medium">
+                          <span className="text-text-secondary font-medium flex-1 text-left">
                             {item}
+                          </span>
+                          <span className="font-mono text-[10px] text-text-tertiary uppercase">
+                            PLANNED
                           </span>
                         </li>
                       ))}
@@ -195,12 +127,12 @@ export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionPro
                   </div>
                 )}
 
-                <div className="mt-10 pt-6 border-t border-border">
+                <div className="mt-8 pt-6 border-t border-border">
                   <Link
                     href="/roadmap"
-                    className="inline-flex items-center gap-2 text-[12px] font-semibold tracking-widest uppercase text-text-secondary hover:text-accent transition-colors duration-200"
+                    className="inline-flex items-center gap-2 text-[12px] font-mono font-semibold tracking-widest uppercase text-text-secondary hover:text-accent transition-colors duration-200"
                   >
-                    Full Roadmap <ArrowRight size={12} strokeWidth={2} />
+                    Explore Full Roadmap <ArrowRight size={13} strokeWidth={2} />
                   </Link>
                 </div>
               </div>
@@ -213,8 +145,6 @@ export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionPro
   );
 }
 
-// ── Animated progress fill ────────────────────────────────────────
-
 function ProgressFill({ progress }: { progress: number }) {
   const shouldReduce = useReducedMotion();
   return (
@@ -226,7 +156,7 @@ function ProgressFill({ progress }: { progress: number }) {
       transition={
         shouldReduce
           ? { duration: 0 }
-          : { duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.4 }
+          : { duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.2 }
       }
     />
   );

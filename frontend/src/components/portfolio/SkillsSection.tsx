@@ -1,49 +1,45 @@
 "use client";
 
-import { SlideUp, StaggerContainer, StaggerItem } from "@/components/motion/MotionPrimitives";
+import { SlideUp } from "@/components/motion/MotionPrimitives";
 import { cn } from "@/lib/utils";
-import { Skill, SkillStatus } from "@/types";
-import { Sparkles, Layers, CheckCircle2, Clock, Compass } from "lucide-react";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  "programming":     "Programming Languages",
-  "cs-fundamentals": "CS Fundamentals",
-  "web":             "Web Development",
-  "databases":       "Databases",
-  "systems":         "Systems & OS",
-  "cloud":           "Cloud & DevOps",
-  "ai-ml":           "AI & Machine Learning",
-  "mobile":          "Mobile Development",
-  "tools":           "Tools & Workflow",
-};
-
-const STATUS_CONFIG: Record<string, { label: string; dot: string; border: string; text: string; bg: string }> = {
-  "in-progress": { label: "IN PROGRESS", dot: "bg-accent", border: "border-accent/40", text: "text-accent", bg: "bg-accent/5" },
-  "learning":    { label: "IN PROGRESS", dot: "bg-accent", border: "border-accent/40", text: "text-accent", bg: "bg-accent/5" },
-  "practicing":  { label: "PRACTICING",  dot: "bg-amber-400", border: "border-amber-400/40", text: "text-amber-400", bg: "bg-amber-400/5" },
-  "review":      { label: "REVIEW",      dot: "bg-blue-400", border: "border-blue-400/40", text: "text-blue-400", bg: "bg-blue-400/5" },
-  "completed":   { label: "COMPLETED",   dot: "bg-emerald-400", border: "border-emerald-400/40", text: "text-emerald-400", bg: "bg-emerald-400/5" },
-  "not-started": { label: "PLANNED",     dot: "bg-text-tertiary", border: "border-border/60", text: "text-text-secondary", bg: "bg-white/[0.01]" },
-  "planned":     { label: "PLANNED",     dot: "bg-text-tertiary", border: "border-border/60", text: "text-text-secondary", bg: "bg-white/[0.01]" },
-  "optional":    { label: "OPTIONAL",    dot: "bg-purple-400", border: "border-purple-400/40", text: "text-purple-400", bg: "bg-purple-400/5" },
-  "paused":      { label: "PAUSED",      dot: "bg-zinc-500", border: "border-zinc-500/40", text: "text-zinc-400", bg: "bg-zinc-500/5" },
-};
+import { Skill } from "@/types";
 
 interface SkillsSectionProps {
   skills?: Skill[];
   hideHeader?: boolean;
 }
 
-export function SkillsSection({ skills = [], hideHeader = false }: SkillsSectionProps) {
-  const publishedSkills = skills.filter((s) => s.published);
+const CATEGORY_MAP: Record<string, { label: string; order: number }> = {
+  "programming":     { label: "PROGRAMMING LANGUAGES", order: 1 },
+  "cs-fundamentals": { label: "CORE FUNDAMENTALS",     order: 2 },
+  "systems":         { label: "SYSTEMS & CLI",         order: 3 },
+  "web":             { label: "WEB ARCHITECTURE",      order: 4 },
+  "databases":       { label: "DATA & STORAGE",        order: 5 },
+  "cloud":           { label: "CLOUD & DEVOPS",        order: 6 },
+  "ai-ml":           { label: "AI & INTELLIGENCE",     order: 7 },
+  "tools":           { label: "DEVELOPMENT WORKFLOW",  order: 8 },
+};
 
-  // 1. Separate into genuine buckets
+// Fallback categorization by skill name if category field is empty or generic
+function categorizeSkill(skill: Skill): string {
+  const name = skill.name.toLowerCase();
+  if (name.includes("c++") || name === "c" || name.includes("python") || name.includes("java")) return "programming";
+  if (name.includes("structure") || name.includes("algorithm")) return "cs-fundamentals";
+  if (name.includes("linux")) return "systems";
+  if (name.includes("html") || name.includes("react") || name.includes("node") || name.includes("javascript")) return "web";
+  if (name.includes("mongo") || name.includes("sql") || name.includes("database")) return "databases";
+  if (name.includes("cloud") || name.includes("devops")) return "cloud";
+  if (name.includes("ai") || name.includes("machine learning")) return "ai-ml";
+  if (name.includes("git")) return "tools";
+  return skill.category || "programming";
+}
+
+export function SkillsSection({ skills = [], hideHeader = false }: SkillsSectionProps) {
+  const publishedSkills = skills.filter((s) => s.published !== false);
+
+  // 1. Separate Active Foundation from Roadmap
   const inProgressSkills = publishedSkills.filter(
     (s) => s.status === "in-progress" || s.status === "learning" || s.status === "practicing"
-  );
-
-  const completedSkills = publishedSkills.filter(
-    (s) => s.status === "completed"
   );
 
   const roadmapSkills = publishedSkills.filter(
@@ -51,16 +47,20 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
   );
 
   // Group roadmap skills by category
-  const roadmapGroups = roadmapSkills.reduce<Record<string, Skill[]>>((acc, s) => {
-    const cat = s.category || "tools";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(s);
-    return acc;
-  }, {});
+  const groups: Record<string, Skill[]> = {};
+  roadmapSkills.forEach((skill) => {
+    const cat = categorizeSkill(skill);
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(skill);
+  });
+
+  const sortedCategories = Object.keys(groups).sort(
+    (a, b) => (CATEGORY_MAP[a]?.order || 99) - (CATEGORY_MAP[b]?.order || 99)
+  );
 
   return (
     <section
-      className={hideHeader ? "py-12 md:py-16 bg-bg" : "section border-t border-border bg-bg"}
+      className={hideHeader ? "py-12 md:py-20 bg-bg" : "section border-t border-border bg-bg"}
       id="skills"
       aria-labelledby="skills-heading"
     >
@@ -69,9 +69,9 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
         {/* Header */}
         {!hideHeader && (
           <SlideUp>
-            <div className="max-w-3xl mb-14">
-              <span className="label-meta block mb-3 text-accent font-mono text-[11px] uppercase tracking-widest">
-                06 / Technical Focus & Roadmap
+            <div className="max-w-3xl mb-14 sm:mb-16">
+              <span className="label-meta block mb-3 text-accent">
+                05 / Technical Stack & Roadmap
               </span>
               <h2
                 id="skills-heading"
@@ -80,60 +80,56 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
               >
                 What I'm Actually Working With.
               </h2>
-              <p className="text-body-lg text-text-secondary leading-relaxed font-body">
-                An authentic, verified record of technical capabilities — only what is actively practiced or planned from first principles. No fabricated expertise.
+              <p className="text-[16px] sm:text-[18px] text-text-secondary leading-relaxed font-body">
+                An authentic, verified record of technical capabilities — only what is actively practiced from first principles or planned on the curriculum. No fabricated expertise.
               </p>
             </div>
           </SlideUp>
         )}
 
-        {/* ── 01 / IN PROGRESS ────────────────────────────────────── */}
+        {/* ── 01 / FOUNDATION IN PROGRESS ─────────────────────────── */}
         {inProgressSkills.length > 0 && (
-          <div className="mb-14">
+          <div className="mb-16 sm:mb-20">
             <SlideUp>
-              <div className="flex items-center gap-3 mb-6 pb-3 border-b border-border/60">
-                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              <div className="flex items-center gap-3 mb-6 pb-3 border-b border-border">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                 <h3 className="font-mono text-xs tracking-widest text-text-primary uppercase">
                   01 / FOUNDATION IN PROGRESS
                 </h3>
               </div>
             </SlideUp>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {inProgressSkills.map((skill) => {
                 const progressVal = typeof skill.progress === "number" && skill.progress > 0 ? skill.progress : 89;
                 return (
                   <SlideUp key={skill._id} delay={0.05}>
-                    <div className="p-6 rounded-2xl bg-bg-card border border-accent/30 bg-accent/[0.02] relative overflow-hidden transition-all duration-300 hover:border-accent/60">
-                      
-                      {/* Top row */}
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div>
-                          <span className="text-[10px] font-mono uppercase tracking-widest text-accent/80 block mb-1">
-                            {CATEGORY_LABELS[skill.category] || skill.category}
-                          </span>
-                          <h4 className="font-display font-bold text-2xl text-text-primary tracking-tight">
-                            {skill.name}
-                          </h4>
-                        </div>
-                        <span className="font-mono font-bold text-2xl text-accent">
+                    <div className="p-6 sm:p-8 rounded-2xl bg-bg-card border border-border hover:border-accent/40 transition-colors">
+                      <div className="flex items-baseline justify-between gap-4 mb-3">
+                        <h4 className="font-display font-bold text-2xl sm:text-3xl text-text-primary tracking-tight">
+                          {skill.name}
+                        </h4>
+                        <span className="font-mono font-bold text-xl sm:text-2xl text-accent tabular-nums">
                           {progressVal}%
                         </span>
                       </div>
 
-                      {/* Description if any */}
-                      {skill.description && (
-                        <p className="text-sm text-text-secondary mb-5 leading-relaxed font-body">
-                          {skill.description}
-                        </p>
-                      )}
+                      <p className="text-[14px] sm:text-[15px] text-text-secondary mb-6 leading-relaxed">
+                        {skill.description ||
+                          "Version control fundamentals, branching strategies, commit hygiene, merging, rebasing, and GitHub collaboration workflows from first principles."}
+                      </p>
 
-                      {/* Animated Progress Bar */}
-                      <div className="w-full h-2 rounded-full bg-border/60 overflow-hidden">
+                      {/* Unified Progress Bar */}
+                      <div className="w-full h-1.5 bg-border-muted rounded-full overflow-hidden">
                         <div
                           className="h-full bg-accent rounded-full transition-all duration-1000 ease-out"
                           style={{ width: `${progressVal}%` }}
                         />
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-3 text-[11px] font-mono text-text-tertiary">
+                        <span>ACTIVE CURRICULUM</span>
+                        <span className="text-accent">IN PROGRESS</span>
                       </div>
                     </div>
                   </SlideUp>
@@ -143,72 +139,57 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
           </div>
         )}
 
-        {/* ── 02 / COMPLETED (Only if explicitly marked) ─────────── */}
-        {completedSkills.length > 0 && (
-          <div className="mb-14">
-            <SlideUp>
-              <div className="flex items-center gap-3 mb-6 pb-3 border-b border-border/60">
-                <CheckCircle2 size={14} className="text-emerald-400" />
-                <h3 className="font-mono text-xs tracking-widest text-text-primary uppercase">
-                  02 / COMPLETED CAPABILITIES
-                </h3>
-              </div>
-            </SlideUp>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {completedSkills.map((skill) => (
-                <div
-                  key={skill._id}
-                  className="p-4 rounded-xl bg-bg-card border border-emerald-400/30 flex items-center justify-between gap-3"
-                >
-                  <span className="font-medium text-text-primary text-sm">{skill.name}</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
-                    Completed
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 03 / ON THE ROADMAP ─────────────────────────────────── */}
-        {roadmapSkills.length > 0 && (
+        {/* ── 02 / ON THE ROADMAP ─────────────────────────────────── */}
+        {sortedCategories.length > 0 && (
           <div>
             <SlideUp>
-              <div className="flex items-center gap-3 mb-6 pb-3 border-b border-border/60">
-                <Compass size={14} className="text-text-muted" />
+              <div className="flex items-center gap-3 mb-8 pb-3 border-b border-border">
+                <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary" />
                 <h3 className="font-mono text-xs tracking-widest text-text-primary uppercase">
-                  {completedSkills.length > 0 ? "03 / ON THE ROADMAP" : "02 / ON THE ROADMAP"}
+                  02 / ON THE ROADMAP
                 </h3>
               </div>
             </SlideUp>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(roadmapGroups).map(([catKey, catSkills], idx) => (
-                <SlideUp key={catKey} delay={0.05 * idx}>
-                  <div className="p-5 rounded-xl bg-bg-card border border-border/60 flex flex-col justify-between h-full">
-                    <div>
-                      <h4 className="font-mono text-xs uppercase tracking-wider text-text-muted mb-4 pb-2 border-b border-border/40 flex items-center justify-between">
-                        <span>{CATEGORY_LABELS[catKey] || catKey}</span>
-                        <span className="text-[10px] text-text-tertiary">{catSkills.length}</span>
-                      </h4>
-                      <div className="space-y-2.5">
+            {/* Editorial Multi-Column List Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-12">
+              {sortedCategories.map((catKey, idx) => {
+                const catInfo = CATEGORY_MAP[catKey] || { label: catKey.toUpperCase() };
+                const catSkills = groups[catKey] || [];
+
+                return (
+                  <SlideUp key={catKey} delay={0.04 * idx}>
+                    <div className="flex flex-col">
+                      {/* Structural Heading */}
+                      <div className="pb-2.5 mb-3 border-b border-border flex items-baseline justify-between">
+                        <h4 className="font-mono text-[11px] font-semibold tracking-widest uppercase text-text-secondary">
+                          {catInfo.label}
+                        </h4>
+                        <span className="font-mono text-[10px] text-text-tertiary">
+                          {String(catSkills.length).padStart(2, "0")}
+                        </span>
+                      </div>
+
+                      {/* Editorial Rows with Thin Dividers */}
+                      <div className="divide-y divide-border/60">
                         {catSkills.map((skill) => (
                           <div
                             key={skill._id}
-                            className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-border/40 hover:border-border/80 transition-colors"
+                            className="py-2.5 flex items-center justify-between gap-3 text-left group hover:pl-1 transition-all"
                           >
-                            <span className="text-sm font-medium text-text-secondary">{skill.name}</span>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary px-1.5 py-0.5 rounded bg-white/[0.03]">
-                              Planned
+                            <span className="text-[14px] font-medium text-text-primary group-hover:text-accent transition-colors">
+                              {skill.name}
+                            </span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary">
+                              PLANNED
                             </span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  </div>
-                </SlideUp>
-              ))}
+                  </SlideUp>
+                );
+              })}
             </div>
           </div>
         )}

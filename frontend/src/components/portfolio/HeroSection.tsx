@@ -2,9 +2,8 @@
 
 import { useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import Link from "next/link";
 import {
-  ArrowRight, ArrowDown,
+  ArrowDown,
   MapPin, GraduationCap, Code2, Zap, Star, BookOpen,
   Coffee, Globe, Terminal, Cpu, Layers, Award
 } from "lucide-react";
@@ -18,7 +17,6 @@ const LiquidHeroCursor = dynamic(
 );
 
 // ── Icon resolver ─────────────────────────────────────────────
-// Maps icon name strings (stored in DB) to Lucide icon components
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
   MapPin, GraduationCap, Code2, Zap, Star, BookOpen,
   Coffee, Globe, Terminal, Cpu, Layers, Award,
@@ -34,8 +32,8 @@ export interface HeroConfig {
   headlineLines: string[];
   subtitle:      string;
   eyebrow: Array<{ text: string; icon: string; enabled: boolean; order: number }>;
-  ctaPrimary:   { label: string; url: string; enabled: boolean; external: boolean };
-  ctaSecondary: { label: string; url: string; enabled: boolean; external: boolean };
+  ctaPrimary?:   { label: string; url: string; enabled: boolean; external: boolean };
+  ctaSecondary?: { label: string; url: string; enabled: boolean; external: boolean };
   backgroundImage: string;
   heroImage:       string;
   overlayOpacity:  number;
@@ -55,7 +53,6 @@ export interface HeroConfig {
   visible: boolean;
 }
 
-// Defaults if API returns nothing
 const DEFAULT_CONFIG: HeroConfig = {
   headlineLines: ["BUILDING", "SOFTWARE", "ONE LAYER", "AT A TIME."],
   subtitle: "MCA student focused on building strong programming fundamentals, software engineering skills, and real-world projects. Documenting the journey publicly.",
@@ -65,8 +62,6 @@ const DEFAULT_CONFIG: HeroConfig = {
     { text: "SINCE 2026",                 icon: "Code2",        enabled: true, order: 3 },
     { text: "CURRENTLY LEARNING: GIT → C",icon: "Zap",          enabled: true, order: 4 },
   ],
-  ctaPrimary:   { label: "View Projects",   url: "/projects", enabled: true, external: false },
-  ctaSecondary: { label: "Explore Journey", url: "/journey",  enabled: true, external: false },
   backgroundImage: "",
   heroImage:       "",
   overlayOpacity:  0.04,
@@ -82,15 +77,10 @@ const DEFAULT_CONFIG: HeroConfig = {
 
 interface HeroSectionProps {
   config?: HeroConfig | null;
-  resume?: {
-    fileUrl?: string;
-    fileName?: string;
-    published?: boolean;
-    label?: string;
-  } | null;
+  resume?: any;
 }
 
-export function HeroSection({ config: rawConfig, resume }: HeroSectionProps) {
+export function HeroSection({ config: rawConfig }: HeroSectionProps) {
   const config       = rawConfig ?? DEFAULT_CONFIG;
   const shouldReduce = useReducedMotion();
   const sectionRef   = useRef<HTMLElement>(null);
@@ -98,7 +88,7 @@ export function HeroSection({ config: rawConfig, resume }: HeroSectionProps) {
 
   const makeMotion = (delay: number) =>
     !animEnabled ? {} : {
-      initial: { opacity: 0, y: 20 },
+      initial: { opacity: 0, y: 14 },
       animate: { opacity: 1, y: 0 },
       transition: { duration: duration.normal, ease: ease.editorial, delay },
     };
@@ -115,70 +105,80 @@ export function HeroSection({ config: rawConfig, resume }: HeroSectionProps) {
     .filter((e) => e.enabled)
     .sort((a, b) => a.order - b.order);
 
+  // Group 1: General Profile items; Group 2: Live status item (last)
+  const profileItems = activeEyebrow.slice(0, -1);
+  const liveStatusItem = activeEyebrow.length > 0 ? activeEyebrow[activeEyebrow.length - 1] : null;
+
   const heroLines = config.headlineLines?.length ? config.headlineLines : DEFAULT_CONFIG.headlineLines;
 
   return (
     <section
       ref={sectionRef}
-      className="relative min-h-screen flex flex-col justify-center overflow-hidden"
+      className="hero-section"
       aria-label="Hero"
     >
-      {/* Liquid cursor — only when enabled in config */}
+      {/* Liquid cursor — strictly desktop (lg+) only */}
       {config.effects?.liquidCursor !== false && (
-        <LiquidHeroCursor heroRef={sectionRef} />
+        <div className="hidden lg:block pointer-events-none" aria-hidden>
+          <LiquidHeroCursor heroRef={sectionRef} />
+        </div>
       )}
 
-      {/* Background */}
-      <HeroBackground
-        backgroundImage={config.backgroundImage}
-        overlayOpacity={config.overlayOpacity}
-        glowEnabled={config.effects?.glow !== false}
-        grainEnabled={config.effects?.grain !== false}
-      />
+      {/* ── VISUAL BACKGROUND LAYER (Z-0) ────────────────────── */}
+      <div className="hero-visual-layer absolute inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
+        <HeroBackground
+          backgroundImage={config.backgroundImage}
+          overlayOpacity={config.overlayOpacity}
+          glowEnabled={config.effects?.glow !== false}
+          grainEnabled={config.effects?.grain !== false}
+        />
+        {/* Controlled secondary GR sculptural watermark */}
+        <DecoText animEnabled={animEnabled} />
+      </div>
 
+      {/* ── HERO CONTENT LAYER (Z-10) ─────────────────────────── */}
       <div className="container relative z-10">
-        <div className="pt-32 pb-24 lg:pt-40 lg:pb-32">
+        <div className="w-full max-w-4xl">
 
-          {/* ── EYEBROW / METADATA ROW ──────────────────────────── */}
+          {/* ── LAYER 2: METADATA (2 intentional rows on mobile) ── */}
           <motion.div
             {...makeMotion(heroSequence.meta)}
-            className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-12"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-y-2.5 gap-x-6 mb-5 sm:mb-6"
           >
-            {activeEyebrow.map(({ icon, text }, idx) => {
-              const Icon = resolveIcon(icon);
-              // Last item gets the "live status" treatment (pulse dot + ml-auto)
-              const isLast = idx === activeEyebrow.length - 1;
-              return (
-                <span
-                  key={idx}
-                  className={cn(
-                    "flex items-center gap-2 font-mono text-[11px] tracking-widest uppercase text-text-secondary",
-                    isLast && "ml-auto"
-                  )}
-                >
-                  {isLast ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulseAccent_2s_ease-in-out_infinite]" />
-                  ) : (
-                    <Icon size={12} strokeWidth={2} className="text-accent" />
-                  )}
-                  {text}
-                </span>
-              );
-            })}
+            {/* Row 1: Profile attributes */}
+            <div className="flex flex-wrap items-center gap-x-3.5 sm:gap-x-6 gap-y-1 font-mono text-[10.5px] sm:text-[11px] tracking-[0.15em] uppercase text-text-secondary">
+              {profileItems.map(({ icon, text }, idx) => {
+                const Icon = resolveIcon(icon);
+                return (
+                  <span key={idx} className="flex items-center gap-1.5 whitespace-nowrap">
+                    <Icon size={11} strokeWidth={2} className="text-accent shrink-0" />
+                    <span>{text}</span>
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* Row 2: Live status badge */}
+            {liveStatusItem && (
+              <div className="flex items-center gap-2 font-mono text-[10.5px] sm:text-[11px] tracking-[0.15em] uppercase text-text-secondary sm:ml-auto whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-[pulseAccent_2s_ease-in-out_infinite] shrink-0" />
+                <span>{liveStatusItem.text}</span>
+              </div>
+            )}
           </motion.div>
 
-          {/* ── HERO HEADLINE ───────────────────────────────────── */}
+          {/* ── LAYER 3: HEADLINE (Solid tightly stacked block) ─── */}
           <h1
-            className="font-display font-bold leading-none tracking-tighter mb-8"
-            style={{ fontSize: "clamp(68px, 10vw, 148px)" }}
+            className="font-display font-bold leading-[0.86] tracking-tighter mb-7 sm:mb-8 w-full max-w-none lg:max-w-[880px]"
+            style={{ fontSize: "clamp(48px, 12.5vw, 124px)" }}
             aria-label={heroLines.join(" ")}
           >
             {heroLines.map((line, i) => (
               <span key={i} className="block overflow-hidden">
                 <motion.span
-                  className="block"
-                  {...makeLineMotion(heroSequence.headline1 + i * 0.15)}
-                  style={{ letterSpacing: "-0.03em" }}
+                  className="block pr-2"
+                  {...makeLineMotion(heroSequence.headline1 + i * 0.12)}
+                  style={{ letterSpacing: "-0.035em" }}
                 >
                   {/* Last line: last char gets accent color */}
                   {i === heroLines.length - 1 && line.length > 0 ? (
@@ -194,99 +194,36 @@ export function HeroSection({ config: rawConfig, resume }: HeroSectionProps) {
             ))}
           </h1>
 
-          {/* ── SUBTITLE + CTA ──────────────────────────────────── */}
-          <div className="max-w-2xl">
+          {/* ── LAYER 3B: SUBTITLE DESCRIPTION ──────────────────── */}
+          <div className="w-full max-w-none sm:max-w-[720px]">
             <motion.p
               {...makeMotion(heroSequence.subtitle)}
-              className="text-[18px] lg:text-[20px] text-text-secondary leading-relaxed mb-12"
+              className="text-[16px] sm:text-[18px] lg:text-[19.5px] text-text-secondary leading-[1.5] font-body"
             >
               {config.subtitle || DEFAULT_CONFIG.subtitle}
             </motion.p>
 
-            {/* CTAs */}
+            {/* ── LAYER 4: SCROLL CUE (Discovery cue) ─────────────── */}
             <motion.div
-              {...makeMotion(heroSequence.cta)}
-              className="flex flex-wrap items-center gap-4"
+              {...makeMotion(heroSequence.scroll)}
+              className="mt-5 sm:mt-6 flex items-center gap-2"
+              aria-hidden
             >
-              {config.ctaPrimary?.enabled !== false && (
-                <Link
-                  href={config.ctaPrimary?.url || "/projects"}
-                  target={config.ctaPrimary?.external ? "_blank" : undefined}
-                  rel={config.ctaPrimary?.external ? "noopener noreferrer" : undefined}
-                  className={cn(
-                    "flex items-center gap-2.5 px-7 py-4 rounded-pill",
-                    "bg-accent text-bg font-semibold text-[14px] tracking-wide uppercase",
-                    "hover:bg-accent/90 active:scale-[0.98]",
-                    "transition-all duration-200",
-                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-                  )}
-                >
-                  {config.ctaPrimary?.label || "View Projects"}
-                  <ArrowRight size={16} strokeWidth={2.5} />
-                </Link>
-              )}
-
-              {config.ctaSecondary?.enabled !== false && (
-                <Link
-                  href={config.ctaSecondary?.url || "/journey"}
-                  target={config.ctaSecondary?.external ? "_blank" : undefined}
-                  rel={config.ctaSecondary?.external ? "noopener noreferrer" : undefined}
-                  className={cn(
-                    "flex items-center gap-2.5 px-7 py-4 rounded-pill",
-                    "border border-border text-text-primary font-semibold text-[14px] tracking-wide uppercase",
-                    "hover:border-border-hover hover:text-text-primary",
-                    "transition-all duration-200",
-                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-                  )}
-                >
-                  {config.ctaSecondary?.label || "Explore Journey"}
-                  <ArrowRight size={16} strokeWidth={2} className="text-text-secondary" />
-                </Link>
-              )}
-
-              {resume?.published && resume?.fileUrl && (
-                <a
-                  href={resume.fileUrl.startsWith("http") ? resume.fileUrl : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}${resume.fileUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="View Official Curriculum Vitae / Resume (PDF opens in new tab)"
-                  className={cn(
-                    "flex items-center gap-2 px-6 py-4 rounded-pill",
-                    "border border-primary/40 bg-primary/[0.04] text-primary font-semibold text-[14px] tracking-wide uppercase",
-                    "hover:bg-primary/[0.08] hover:border-primary/60",
-                    "transition-all duration-200",
-                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-                  )}
-                >
-                  {resume.label || "View Resume"}
-                  <ArrowRight size={15} strokeWidth={2} className="text-primary -rotate-45" />
-                </a>
-              )}
+              <motion.div
+                animate={animEnabled ? { y: [0, 4, 0] } : {}}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: heroSequence.scroll + 0.5 }}
+                className="inline-flex items-center justify-center leading-none"
+              >
+                <ArrowDown size={13} strokeWidth={1.5} className="text-text-tertiary" />
+              </motion.div>
+              <span className="font-mono text-[10.5px] tracking-[0.22em] uppercase text-text-tertiary leading-none">
+                Scroll to explore
+              </span>
             </motion.div>
           </div>
 
-          {/* ── SCROLL INDICATOR ────────────────────────────────── */}
-          <motion.div
-            {...makeMotion(heroSequence.scroll)}
-            className="mt-20 flex items-center gap-3"
-            aria-hidden
-          >
-            <motion.div
-              animate={animEnabled ? { y: [0, 6, 0] } : {}}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: heroSequence.scroll + 0.5 }}
-            >
-              <ArrowDown size={18} strokeWidth={1.5} className="text-text-tertiary" />
-            </motion.div>
-            <span className="font-mono text-[11px] tracking-widest uppercase text-text-tertiary">
-              Scroll to explore
-            </span>
-          </motion.div>
-
         </div>
       </div>
-
-      {/* Large decorative text behind */}
-      <DecoText animEnabled={animEnabled} />
     </section>
   );
 }
@@ -297,62 +234,79 @@ function HeroBackground({ backgroundImage, overlayOpacity, glowEnabled, grainEna
   backgroundImage: string; overlayOpacity: number; glowEnabled: boolean; grainEnabled: boolean;
 }) {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+    <>
       {/* Custom background image */}
       {backgroundImage && (
         <>
           <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${backgroundImage})` }} />
-          <div className="absolute inset-0" style={{ background: `rgba(0,0,0,${overlayOpacity ?? 0.04})` }} />
+          <div className="absolute inset-0" style={{ background: `rgba(246,244,239,${overlayOpacity ?? 0.04})` }} />
         </>
       )}
 
       {/* Default: dot grid */}
       {!backgroundImage && (
         <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: `radial-gradient(circle, #f0ede8 1px, transparent 1px)`, backgroundSize: "40px 40px" }}
+          className="absolute inset-0 opacity-100 pointer-events-none"
+          style={{ backgroundImage: `radial-gradient(circle, var(--hero-dot-color, rgba(240,237,232,0.25)) 1px, transparent 1px)`, backgroundSize: "40px 40px" }}
         />
       )}
 
       {/* Glow — top right */}
       {glowEnabled && (
         <div
-          className="absolute -top-40 right-0 w-[700px] h-[700px] rounded-full opacity-[0.04]"
-          style={{ background: "radial-gradient(circle, #e8c547 0%, transparent 70%)" }}
+          className="absolute -top-36 right-0 rounded-full pointer-events-none transition-all duration-300"
+          style={{
+            width: "var(--ambient-glow-top-size, 550px)",
+            height: "var(--ambient-glow-top-size, 550px)",
+            opacity: "var(--ambient-glow-top-opacity, 0.035)",
+            background: "radial-gradient(circle, var(--ambient-glow-color, #E9C43A) 0%, transparent 70%)",
+          }}
         />
       )}
 
       {/* Glow — bottom left */}
       {glowEnabled && (
         <div
-          className="absolute bottom-0 -left-40 w-[500px] h-[500px] rounded-full opacity-[0.03]"
-          style={{ background: "radial-gradient(circle, #e8c547 0%, transparent 70%)" }}
+          className="absolute bottom-0 -left-36 rounded-full pointer-events-none transition-all duration-300"
+          style={{
+            width: "var(--ambient-glow-bottom-size, 400px)",
+            height: "var(--ambient-glow-bottom-size, 400px)",
+            opacity: "var(--ambient-glow-bottom-opacity, 0.025)",
+            background: "radial-gradient(circle, var(--ambient-glow-color, #E9C43A) 0%, transparent 70%)",
+          }}
         />
       )}
 
       {/* Horizontal divider line */}
-      <div className="absolute top-1/2 left-0 right-0 h-px bg-border opacity-50" />
+      <div className="absolute top-1/2 left-0 right-0 h-px bg-border opacity-60" />
 
       {/* Film grain */}
       {grainEnabled && (
         <div className="absolute inset-0 opacity-[0.015] pointer-events-none"
           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")", backgroundRepeat: "repeat", backgroundSize: "128px" }} />
       )}
-    </div>
+    </>
   );
 }
 
-// ── DECO TEXT ─────────────────────────────────────────────────
+// ── DECO TEXT (Secondary Typographic Sculpture — Background Layer) ─
 
 function DecoText({ animEnabled }: { animEnabled: boolean }) {
   return (
-    <div className="absolute bottom-0 right-0 pointer-events-none overflow-hidden select-none" aria-hidden>
+    <div className="block absolute bottom-4 right-[-30px] sm:right-[-10px] lg:right-4 pointer-events-none overflow-hidden select-none z-0" aria-hidden>
       <motion.span
-        initial={animEnabled ? { opacity: 0, x: 40 } : {}}
+        initial={animEnabled ? { opacity: 0, x: 30 } : {}}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 1.2, delay: 1.8, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 1.2, delay: 1.6, ease: [0.22, 1, 0.36, 1] }}
         className="block font-display font-bold text-text-primary"
-        style={{ fontSize: "clamp(120px, 20vw, 280px)", lineHeight: "1", letterSpacing: "-0.04em", opacity: 0.015, transform: "translateX(20%)", userSelect: "none" }}
+        style={{
+          fontSize: "clamp(110px, 28vw, 240px)",
+          lineHeight: "0.85",
+          letterSpacing: "-0.04em",
+          opacity: "var(--hero-deco-opacity, 0.035)" as any,
+          transform: "translateX(6%) translateY(4%)",
+          userSelect: "none",
+        }}
       >
         GR
       </motion.span>

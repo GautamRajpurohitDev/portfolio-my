@@ -10,6 +10,9 @@ import {
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminDataTable } from "@/components/admin/ui/AdminDataTable";
+import { AdminBadge } from "@/components/admin/ui/AdminBadge";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -168,7 +171,7 @@ export default function AdminResumePage() {
   };
 
   return (
-    <div className="space-y-8 pb-16 max-w-5xl">
+    <div className="space-y-6 pb-16">
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -179,27 +182,24 @@ export default function AdminResumePage() {
         isLoading={confirmLoading}
       />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-mono text-text-muted tracking-widest uppercase mb-2">Profile / Credentials</p>
-          <h1 className="text-2xl font-clash font-bold text-text-primary">Resume Management</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Upload, version, and manage your official curriculum vitae. Public links in Navbar and Hero automatically sync to the current published version.
-          </p>
-        </div>
-
-        {currentResume?.published && currentResume?.fileUrl && (
-          <a
-            href={resolveFullUrl(currentResume.fileUrl)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-bg font-semibold font-clash text-sm rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all w-fit"
-          >
-            <ExternalLink size={14} /> Open Live Resume ↗
-          </a>
-        )}
-      </div>
+      {/* ── Standardized Header ───────────────────────────────── */}
+      <AdminPageHeader
+        eyebrow="09 / RESUME"
+        title="Curriculum Vitae"
+        description="Upload, version, and manage your official curriculum vitae. Public links automatically sync to the current published version."
+        actions={
+          currentResume?.published && currentResume?.fileUrl ? (
+            <a
+              href={resolveFullUrl(currentResume.fileUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-bg font-semibold font-clash text-xs rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all"
+            >
+              <ExternalLink size={13} /> Open Live Resume ↗
+            </a>
+          ) : undefined
+        }
+      />
 
       {/* ── CURRENT RESUME STATUS CARD ────────────────────────── */}
       {isLoading ? (
@@ -405,83 +405,141 @@ export default function AdminResumePage() {
               Version History ({resumes.length})
             </h3>
           </div>
-          <button onClick={fetchResumes} className="text-text-muted hover:text-primary p-1 rounded transition-colors" title="Refresh">
-            <RefreshCw size={13} />
-          </button>
         </div>
 
-        {resumes.length === 0 ? (
-          <p className="text-xs font-mono text-text-muted py-4">No historical versions.</p>
-        ) : (
-          <div className="space-y-3">
-            {resumes.map((resume) => (
-              <div
-                key={resume._id}
-                className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                  resume.isCurrent
-                    ? "bg-primary/[0.02] border-primary/40 shadow-sm"
-                    : "bg-[#0f0f0f] border-border/60 hover:border-border"
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={`p-2.5 rounded-lg border ${
-                    resume.isCurrent ? "bg-primary/10 border-primary/30 text-primary" : "bg-white/[0.03] border-border/60 text-text-muted"
-                  }`}>
-                    <FileText size={18} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold font-clash text-text-primary">
-                        v{resume.version} — {resume.fileName}
-                      </p>
-                      {resume.isCurrent && (
-                        <span className="px-2 py-0.5 rounded text-[9px] font-mono uppercase bg-primary text-bg font-bold">
-                          CURRENT
-                        </span>
-                      )}
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase border ${
-                        resume.published ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/30" : "bg-white/[0.03] text-text-muted border-border/40"
-                      }`}>
-                        {resume.published ? "Published" : "Hidden"}
+        <AdminDataTable
+          columns={[
+            {
+              accessorKey: "version",
+              header: "Version",
+              cell: ({ row }) => {
+                const r = row.original;
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className="font-clash font-semibold text-sm text-text-primary">
+                      v{r.version}
+                    </span>
+                    {r.isCurrent && (
+                      <span className="px-2 py-0.5 rounded text-[9px] font-mono uppercase bg-primary text-bg font-bold">
+                        CURRENT
                       </span>
-                    </div>
-                    <p className="text-xs text-text-muted font-mono mt-1">
-                      {formatBytes(resume.fileSize)} • Uploaded {new Date(resume.uploadedAt || resume.createdAt).toLocaleDateString()}
-                      {resume.notes ? ` • Note: ${resume.notes}` : ""}
-                    </p>
+                    )}
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-center">
-                  {!resume.isCurrent && (
-                    <button
-                      onClick={() => handleSetCurrent(resume)}
-                      className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-primary/20 text-text-secondary hover:text-primary text-xs font-mono uppercase tracking-wider transition-colors border border-border/60"
-                    >
-                      Make Current
-                    </button>
+                );
+              },
+            },
+            {
+              accessorKey: "fileName",
+              header: "File Name",
+              cell: ({ row }) => (
+                <div className="min-w-[180px]">
+                  <span className="text-text-primary font-medium text-xs truncate block">
+                    {row.original.fileName}
+                  </span>
+                  {row.original.notes && (
+                    <span className="text-[11px] text-text-muted truncate block">
+                      {row.original.notes}
+                    </span>
                   )}
-                  <a
-                    href={resolveFullUrl(resume.fileUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 text-text-muted hover:text-primary rounded hover:bg-white/[0.04] transition-colors"
-                    title="Preview"
-                  >
-                    <Eye size={14} />
-                  </a>
-                  <button
-                    onClick={() => requestDelete(resume._id, `v${resume.version} (${resume.fileName})`)}
-                    className="p-2 text-text-muted hover:text-red-400 rounded hover:bg-red-500/10 transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ),
+            },
+            {
+              accessorKey: "label",
+              header: "Button Label",
+              cell: ({ row }) => (
+                <span className="text-text-secondary text-xs">
+                  "{row.original.label || 'View Resume'}"
+                </span>
+              ),
+            },
+            {
+              accessorKey: "uploadedAt",
+              header: "Uploaded",
+              cell: ({ row }) => {
+                const date = new Date(row.original.uploadedAt || row.original.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+                return <span className="text-text-muted font-mono text-[11px]">{date}</span>;
+              },
+            },
+            {
+              accessorKey: "fileSize",
+              header: "Size",
+              cell: ({ row }) => (
+                <span className="text-text-muted font-mono text-[11px]">
+                  {formatBytes(row.original.fileSize)}
+                </span>
+              ),
+            },
+            {
+              accessorKey: "published",
+              header: "Visibility",
+              cell: ({ row }) => (
+                <AdminBadge variant={row.original.published ? "published" : "draft"} dot>
+                  {row.original.published ? "Live" : "Hidden"}
+                </AdminBadge>
+              ),
+            },
+            {
+              id: "actions",
+              header: "",
+              cell: ({ row }) => {
+                const r = row.original;
+                return (
+                  <div className="flex items-center justify-end gap-1">
+                    {!r.isCurrent && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetCurrent(r)}
+                        className="px-2.5 py-1 rounded bg-white/[0.04] hover:bg-primary/20 text-text-secondary hover:text-primary text-[10.5px] font-mono uppercase tracking-wider transition-colors border border-border/60 cursor-pointer"
+                      >
+                        Make Current
+                      </button>
+                    )}
+                    <a
+                      href={resolveFullUrl(r.fileUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-text-muted hover:text-primary rounded hover:bg-white/[0.04] transition-colors"
+                      title="Preview PDF"
+                    >
+                      <Eye size={13} />
+                    </a>
+                    <a
+                      href={resolveFullUrl(r.fileUrl)}
+                      download={r.fileName}
+                      className="p-1.5 text-text-muted hover:text-primary rounded hover:bg-white/[0.04] transition-colors"
+                      title="Download PDF"
+                    >
+                      <Download size={13} />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => requestDelete(r._id, `v${r.version} (${r.fileName})`)}
+                      className="p-1.5 text-text-muted hover:text-red-400 rounded hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title="Delete version"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              },
+              enableSorting: false,
+              enableHiding: false,
+            },
+          ]}
+          data={resumes}
+          isLoading={isLoading}
+          searchPlaceholder="Search version history…"
+          enablePagination={true}
+          pageSize={10}
+          onRefresh={fetchResumes}
+          emptyTitle="No resume versions"
+          emptyDescription="Upload your first resume PDF above."
+        />
       </div>
     </div>
   );

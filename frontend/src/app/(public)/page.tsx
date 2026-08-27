@@ -11,6 +11,7 @@ import { BuildLogSection } from "@/components/portfolio/BuildLogSection";
 import { CredentialsSection } from "@/components/portfolio/CredentialsSection";
 import { DirectionSection } from "@/components/portfolio/DirectionSection";
 import { ContactSection } from "@/components/portfolio/ContactSection";
+import { AskGautamSection } from "@/components/portfolio/AskGautamSection";
 import { cookies } from "next/headers";
 
 // ── Server-side fetch helpers ─────────────────────────────────
@@ -165,20 +166,32 @@ export default async function HomePage({ searchParams }: Props) {
     { type: "hero",              enabled: true, id: "hero"              },
     { type: "about",             enabled: true, id: "about"             },
     { type: "currentlyLearning", enabled: true, id: "currentlyLearning" },
-    { type: "journey",           enabled: true, id: "journey"           },
     { type: "roadmapPreview",    enabled: true, id: "roadmapPreview"    },
+    { type: "journey",           enabled: true, id: "journey"           },
     { type: "projects",          enabled: true, id: "projects"          },
     { type: "skills",            enabled: true, id: "skills"            },
     { type: "milestones",        enabled: true, id: "milestones"        },
     { type: "buildLog",          enabled: true, id: "buildLog"          },
     { type: "credentials",       enabled: true, id: "credentials"       },
     { type: "direction",         enabled: true, id: "direction"         },
-    { type: "contact",           enabled: true, id: "contact"           },
+    { type: "askGautam",         enabled: true, id: "askGautam"         },
   ];
 
-  const sectionsToRender: any[] = config?.sections?.length
+  let rawSections: any[] = config?.sections?.length
     ? config.sections.filter((s: any) => s.enabled)
     : defaultSections;
+
+  // Ensure askGautam is rendered on the homepage:
+  // If not already in the list from CMS settings, include it
+  const hasAskGautam = rawSections.some(
+    (s: any) => s.type === "askGautam" || s.type === "ask-gautam"
+  );
+  if (!hasAskGautam) {
+    const withoutContact = rawSections.filter((s: any) => s.type !== "contact");
+    rawSections = [...withoutContact, { type: "askGautam", enabled: true, id: "askGautam" }];
+  }
+
+  const sectionsToRender = rawSections;
 
   return (
     <>
@@ -284,6 +297,14 @@ export default async function HomePage({ searchParams }: Props) {
                 <DirectionSection
                   key={section.id}
                   config={config?.about ?? null}
+                />
+              );
+
+            case "askGautam":
+            case "ask-gautam":
+              return (
+                <AskGautamSection
+                  key={section.id || "askGautam"}
                 />
               );
 

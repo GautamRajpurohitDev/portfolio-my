@@ -1,69 +1,66 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { ColumnDef } from "@tanstack/react-table";
 import { skillsApi } from "@/lib/api";
 import { Skill, SkillStatus } from "@/types";
-import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Layers, Sparkles } from "lucide-react";
+import { Plus, Filter, ChevronDown, Layers } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminButton } from "@/components/admin/ui/AdminButton";
+import { AdminBadge } from "@/components/admin/ui/AdminBadge";
+import { AdminDataTable } from "@/components/admin/ui/AdminDataTable";
+import { AdminRowActions } from "@/components/admin/ui/AdminRowActions";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  "programming":    "Programming Languages",
-  "cs-fundamentals":"CS Fundamentals",
-  "web":            "Web Development",
-  "databases":      "Databases",
-  "systems":        "Systems & OS",
-  "cloud":          "Cloud & DevOps",
-  "ai-ml":          "AI & Machine Learning",
-  "mobile":         "Mobile Development",
-  "tools":          "Tools & Workflow",
+  "programming":     "Programming Languages",
+  "cs-fundamentals": "CS Fundamentals",
+  "web":             "Web Development",
+  "databases":       "Databases & Storage",
+  "systems":         "Systems & Architecture",
+  "cloud":           "Cloud & DevOps",
+  "ai-ml":           "AI & Machine Learning",
+  "mobile":          "Mobile Development",
+  "tools":           "Tools & Workflow",
 };
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  "in-progress": { label: "In Progress", cls: "bg-accent/10 border-accent/30 text-accent" },
-  "learning":    { label: "In Progress", cls: "bg-accent/10 border-accent/30 text-accent" },
-  "practicing":  { label: "Practicing",  cls: "bg-amber-400/10 border-amber-400/30 text-amber-400" },
-  "review":      { label: "In Review",   cls: "bg-blue-400/10 border-blue-400/30 text-blue-400" },
-  "completed":   { label: "Completed",   cls: "bg-emerald-400/10 border-emerald-400/30 text-emerald-400" },
-  "not-started": { label: "Planned",     cls: "bg-white/[0.04] border-border/40 text-text-muted" },
-  "planned":     { label: "Planned",     cls: "bg-white/[0.04] border-border/40 text-text-muted" },
-  "optional":    { label: "Optional",    cls: "bg-purple-400/10 border-purple-400/30 text-purple-400" },
-  "paused":      { label: "Paused",      cls: "bg-zinc-500/10 border-zinc-500/30 text-zinc-400" },
-};
-
-function Badge({ text, cls }: { text: string; cls: string }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${cls}`}>
-      {text}
-    </span>
-  );
-}
 
 export default function AdminSkillsPage() {
-  const [skills, setSkills]           = useState<Skill[]>([]);
-  const [isLoading, setIsLoading]     = useState(true);
-  const [search, setSearch]           = useState("");
-  const [togglingId, setTogglingId]   = useState<string | null>(null);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [pendingId, setPendingId]     = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [pendingName, setPendingName] = useState("");
 
-  const fetch = useCallback(async () => {
+  const fetchSkills = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
+
     try {
-      setIsLoading(true);
       const res = await skillsApi.getAllAdmin();
-      setSkills(res.data.data);
-    } catch { toast.error("Failed to fetch skills"); }
-    finally  { setIsLoading(false); }
+      setSkills(res.data.data || []);
+    } catch {
+      toast.error("Failed to fetch skills");
+    } finally {
+      setIsLoading(false);
+      if (isManualRefresh) setIsRefreshing(false);
+    }
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    fetchSkills();
+  }, [fetchSkills]);
 
   const requestDelete = (id: string, name: string) => {
-    setPendingId(id); setPendingName(name); setConfirmOpen(true);
+    setPendingId(id);
+    setPendingName(name);
+    setConfirmOpen(true);
   };
 
   const handleDelete = async () => {
@@ -72,194 +69,300 @@ export default function AdminSkillsPage() {
     try {
       await skillsApi.delete(pendingId);
       toast.success("Skill deleted");
-      fetch();
-    } catch { toast.error("Failed to delete skill"); }
-    finally  { setConfirmLoading(false); setPendingId(null); setPendingName(""); }
+      fetchSkills();
+    } catch {
+      toast.error("Failed to delete skill");
+    } finally {
+      setConfirmLoading(false);
+      setPendingId(null);
+      setPendingName("");
+    }
   };
 
-  const handleToggle = async (s: Skill) => {
-    setTogglingId(s._id);
+  const handleTogglePublish = async (s: Skill) => {
     try {
       await skillsApi.update(s._id, { published: !s.published });
       toast.success(s.published ? "Skill hidden" : "Skill published");
-      fetch();
-    } catch { toast.error("Failed to update skill"); }
-    finally  { setTogglingId(null); }
+      setSkills((prev) =>
+        prev.map((item) =>
+          item._id === s._id ? { ...item, published: !item.published } : item
+        )
+      );
+    } catch {
+      toast.error("Failed to update skill");
+    }
   };
 
-  const filtered = skills
-    .filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.category.localeCompare(b.category) || a.order - b.order);
+  const filteredData = useMemo(() => {
+    return skills.filter((s) => {
+      if (statusFilter !== "all" && s.status !== statusFilter) return false;
+      if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
+      return true;
+    });
+  }, [skills, statusFilter, categoryFilter]);
 
-  // Group by category
-  const groups = new Map<string, Skill[]>();
-  filtered.forEach(s => {
-    if (!groups.has(s.category)) groups.set(s.category, []);
-    groups.get(s.category)!.push(s);
-  });
+  const columns = useMemo<ColumnDef<Skill>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all"
+          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "name",
+      header: "Skill",
+      cell: ({ row }) => {
+        const s = row.original;
+        return (
+          <div className="flex items-center gap-2.5 min-w-[160px]">
+            <div className="w-7 h-7 rounded-md bg-white/[0.04] border border-border/50 flex items-center justify-center flex-shrink-0 text-text-secondary font-mono text-xs">
+              {s.icon ? <span>{s.icon}</span> : <Layers size={13} />}
+            </div>
+            <div className="min-w-0">
+              <Link
+                href={`/admin/skills/${s._id}/edit`}
+                className="font-clash font-semibold text-text-primary hover:text-primary transition-colors text-[13px] truncate block"
+              >
+                {s.name}
+              </Link>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => (
+        <span className="text-text-secondary font-mono text-[11px]">
+          {CATEGORY_LABELS[row.original.category] || row.original.category}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <AdminBadge variant={row.original.status as any} dot>
+          {row.original.status}
+        </AdminBadge>
+      ),
+    },
+    {
+      accessorKey: "progress",
+      header: "Mastery Progress",
+      cell: ({ row }) => {
+        const progress = row.original.progress ?? 0;
+        return (
+          <div className="flex items-center gap-2.5 min-w-[120px]">
+            <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
+              />
+            </div>
+            <span className="font-mono text-[11px] text-text-secondary w-8 text-right">
+              {progress}%
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "order",
+      header: "Order",
+      cell: ({ row }) => (
+        <span className="font-mono text-[11px] text-text-muted">
+          #{row.original.order}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "published",
+      header: "Visibility",
+      cell: ({ row }) => (
+        <AdminBadge variant={row.original.published ? "published" : "draft"}>
+          {row.original.published ? "Live" : "Hidden"}
+        </AdminBadge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => {
+        const s = row.original;
+        return (
+          <div className="text-right">
+            <AdminRowActions
+              editHref={`/admin/skills/${s._id}/edit`}
+              previewHref="/skills"
+              isPublished={s.published}
+              onTogglePublish={() => handleTogglePublish(s)}
+              onDelete={() => requestDelete(s._id, s.name)}
+            />
+          </div>
+        );
+      },
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ], []);
+
+  const filterControls = (
+    <>
+      {/* Status Filter */}
+      <div className="relative">
+        <Filter
+          size={12}
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-7.5 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+        >
+          <option value="all">All Status</option>
+          <option value="in-progress">In Progress</option>
+          <option value="practicing">Practicing</option>
+          <option value="review">Review</option>
+          <option value="completed">Completed</option>
+          <option value="not-started">Not Started</option>
+          <option value="paused">Paused</option>
+        </select>
+        <ChevronDown
+          size={12}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        />
+      </div>
+
+      {/* Category Filter */}
+      <div className="relative">
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-3 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+        >
+          <option value="all">All Categories</option>
+          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={12}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        />
+      </div>
+    </>
+  );
 
   return (
-    <div className="space-y-7 pb-14">
+    <div className="space-y-6 pb-14">
       <ConfirmDialog
-        open={confirmOpen} onOpenChange={setConfirmOpen}
-        title="Delete skill?" description={`"${pendingName}" will be permanently deleted.`}
-        confirmLabel="Delete" onConfirm={handleDelete} isLoading={confirmLoading}
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete skill?"
+        description={`"${pendingName}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        isLoading={confirmLoading}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-mono text-text-muted tracking-widest uppercase mb-2">04 / Capabilities & Stack</p>
-          <h1 className="text-2xl font-clash font-bold text-text-primary">Skills Management Desk</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Manage your authentic skill inventory. Edit statuses, set progress (0–100%), and organize domain roadmaps.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/skills"
-            target="_blank"
-            className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-mono text-text-muted border border-border/60 rounded-lg hover:border-primary/30 hover:text-primary transition-all uppercase tracking-wider"
-          >
-            Preview Public Page ↗
+      {/* ── Standardized Header ───────────────────────────────── */}
+      <AdminPageHeader
+        eyebrow="02 / CONTENT"
+        title="Technical Capabilities"
+        stats={`${skills.length} Capabilities · ${skills.filter((s) => s.published).length} Live · ${skills.filter((s) => !s.published).length} Drafts`}
+        description="Organize programming languages, engineering tools, frameworks, and active learning priorities."
+        actions={
+          <Link href="/admin/skills/new">
+            <AdminButton variant="primary" icon={<Plus size={15} />}>
+              New Skill
+            </AdminButton>
           </Link>
-          <Link href="/admin/skills/new"
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-bg text-sm font-semibold font-clash rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all w-fit">
-            <Plus size={15} /> Add New Skill
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 min-w-48 max-w-72">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input type="text" placeholder="Search skills…" value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/[0.03] border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/40 transition-colors"
-          />
-        </div>
-        {!isLoading && (
-          <span className="ml-auto text-[11px] font-mono text-text-muted">{filtered.length} total skills</span>
+      {/* ── TanStack Admin Data Table ─────────────────────────── */}
+      <AdminDataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        searchPlaceholder="Search skills by name, category…"
+        filterControls={filterControls}
+        enableSelection={true}
+        enableColumnVisibility={true}
+        enablePagination={true}
+        pageSize={25}
+        onRefresh={() => fetchSkills(true)}
+        isRefreshing={isRefreshing}
+        emptyTitle="No skills found"
+        emptyDescription="Organize your technical competencies and current learning priorities."
+        emptyActionLabel="Add Skill"
+        emptyActionIcon={<Plus size={14} />}
+        onEmptyAction={() => {
+          window.location.href = "/admin/skills/new";
+        }}
+        renderMobileCard={(s) => (
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1.5 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <AdminBadge variant={s.status as any} dot>
+                  {s.status}
+                </AdminBadge>
+                <span className="text-[10px] font-mono text-text-muted">
+                  {CATEGORY_LABELS[s.category] || s.category}
+                </span>
+              </div>
+
+              <Link
+                href={`/admin/skills/${s._id}/edit`}
+                className="font-clash font-semibold text-text-primary hover:text-primary transition-colors text-sm truncate block"
+              >
+                {s.name}
+              </Link>
+
+              <div className="flex items-center gap-2 max-w-xs pt-1">
+                <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.min(Math.max(s.progress ?? 0, 0), 100)}%` }}
+                  />
+                </div>
+                <span className="font-mono text-[10px] text-text-muted">
+                  {s.progress ?? 0}%
+                </span>
+              </div>
+            </div>
+
+            <AdminRowActions
+              editHref={`/admin/skills/${s._id}/edit`}
+              previewHref="/skills"
+              isPublished={s.published}
+              onTogglePublish={() => handleTogglePublish(s)}
+              onDelete={() => requestDelete(s._id, s.name)}
+            />
+          </div>
         )}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-6">
-          {[1,2,3].map(i => <div key={i} className="admin-skeleton rounded-xl h-40" />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-[#0f0f0f] border border-border/60 rounded-xl p-12 text-center space-y-4">
-          <p className="text-[11px] font-mono text-text-muted uppercase tracking-widest">
-            {search ? "No results" : "No skills yet"}
-          </p>
-          <p className="text-sm text-text-secondary max-w-xs mx-auto leading-relaxed">
-            {search ? "Try a different search term." : "Start by adding your genuine capabilities and planned learning paths."}
-          </p>
-          {search ? (
-            <button onClick={() => setSearch("")} className="text-xs font-mono text-primary uppercase tracking-wider">Clear search</button>
-          ) : (
-            <Link href="/admin/skills/new" className="inline-flex items-center gap-1.5 text-xs font-mono text-primary uppercase tracking-wider">
-              <Plus size={11} /> Add first skill
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {Array.from(groups.entries()).map(([cat, catSkills], gi) => (
-            <motion.section
-              key={cat}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: gi * 0.05 }}
-            >
-              {/* Category header */}
-              <div className="flex items-center gap-3 mb-3">
-                <p className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex-shrink-0">
-                  {CATEGORY_LABELS[cat] || cat}
-                </p>
-                <div className="h-px flex-1 bg-border/40" />
-                <span className="text-[10px] font-mono text-text-muted">{catSkills.length}</span>
-              </div>
-
-              {/* Skills grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {catSkills.map((skill, si) => {
-                  const stCfg = STATUS_CFG[skill.status] ?? { label: skill.status, cls: "bg-white/[0.04] border-border/40 text-text-muted" };
-                  const hasProgress = typeof skill.progress === "number" && skill.progress > 0;
-
-                  return (
-                    <motion.div
-                      key={skill._id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: gi * 0.05 + si * 0.03 }}
-                      className="group bg-[#0f0f0f] border border-border/60 rounded-xl p-4 flex flex-col justify-between gap-3 hover:border-primary/40 hover:bg-white/[0.02] transition-all"
-                    >
-                      <div>
-                        {/* Top row */}
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${skill.published ? "bg-emerald-400" : "bg-zinc-600"}`} title={skill.published ? "Published" : "Hidden"} />
-                            <p className="text-sm font-semibold text-text-primary font-body">{skill.name}</p>
-                          </div>
-                          {hasProgress && (
-                            <span className="text-xs font-mono font-bold text-accent">
-                              {skill.progress}%
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Status badge */}
-                        <div className="flex items-center gap-2">
-                          <Badge text={stCfg.label} cls={stCfg.cls} />
-                          {skill.featured && (
-                            <span className="text-[9px] font-mono uppercase text-accent border border-accent/30 bg-accent/5 px-1.5 py-0.5 rounded">
-                              Featured
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Bottom action row with obvious EDIT & DELETE */}
-                      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
-                        <span className="text-[10px] font-mono text-text-muted">Order: {skill.order ?? 0}</span>
-                        
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleToggle(skill)}
-                            disabled={togglingId === skill._id}
-                            title={skill.published ? "Hide from public site" : "Publish to public site"}
-                            className={`p-1.5 rounded transition-all disabled:opacity-50 ${skill.published ? "text-emerald-400 hover:text-yellow-400" : "text-text-muted hover:text-emerald-400"}`}
-                          >
-                            {togglingId === skill._id
-                              ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              : skill.published ? <Eye size={13} /> : <EyeOff size={13} />
-                            }
-                          </button>
-
-                          <Link
-                            href={`/admin/skills/${skill._id}/edit`}
-                            title="Edit Skill Details"
-                            className="flex items-center gap-1 px-2 py-1 bg-white/[0.04] hover:bg-primary/20 text-text-secondary hover:text-primary rounded text-[11px] font-mono uppercase tracking-wider transition-colors"
-                          >
-                            <Edit2 size={11} /> Edit
-                          </Link>
-
-                          <button
-                            onClick={() => requestDelete(skill._id, skill.name)}
-                            title="Delete Skill"
-                            className="p-1.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.section>
-          ))}
-        </div>
-      )}
+      />
     </div>
   );
 }

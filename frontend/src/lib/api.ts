@@ -190,3 +190,23 @@ export const resumeApi = {
   delete: (id: string) => api.delete(`/api/resume/${id}`),
 };
 
+export const healthApi = {
+  check: () => api.get("/api/health"),
+};
+
+export const activityApi = {
+  getLogs: (params?: { type?: string; result?: string; search?: string; page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append("type", params.type);
+    if (params?.result) searchParams.append("result", params.result);
+    if (params?.search) searchParams.append("search", params.search);
+    if (params?.page) searchParams.append("page", String(params.page));
+    if (params?.limit) searchParams.append("limit", String(params.limit));
+    return api.get(`/api/activity?${searchParams.toString()}`);
+  },
+};
+
+export const securityApi = {
+  getStatus: () => api.get("/api/security/status"),
+};
+

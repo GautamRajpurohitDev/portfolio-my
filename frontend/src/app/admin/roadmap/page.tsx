@@ -10,6 +10,7 @@ import {
   GitBranch, Globe, Database, Code2, Network, Shield, Cloud, Brain,
   Sparkles, Terminal, Settings, Trophy, Calculator, Sigma
 } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -721,23 +722,23 @@ export default function AdminRoadmapPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 min-h-screen">
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Map size={18} className="text-accent" />
-            <h1 className="text-xl font-bold text-text-primary tracking-tight">Programming Mastery Roadmap</h1>
-          </div>
-          <p className="text-xs text-text-muted font-mono">ROADMAP MANAGER — ADMIN</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <a href="/roadmap" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs text-text-muted border border-white/[0.08] rounded-xl hover:border-white/[0.16] hover:text-text-primary transition-colors">
-            <Globe size={12} /> View Public
+    <div className="space-y-6 min-h-screen pb-14">
+      {/* ── Standardized Header ───────────────────────────────── */}
+      <AdminPageHeader
+        eyebrow="PORTFOLIO / ROADMAP"
+        title="Programming Mastery Roadmap"
+        description="Manage learning phases, domains, and topic-level progress tracking."
+        actions={
+          <a
+            href="/roadmap"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-mono text-text-secondary border border-border/70 rounded-lg hover:border-primary/30 hover:text-primary transition-all"
+          >
+            <Globe size={13} /> View Public
           </a>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Stats row ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -747,12 +748,12 @@ export default function AdminRoadmapPage() {
           { label: "Domains",     value: totalDomains,     icon: Layers },
           { label: "Topics",      value: totalTopics,      icon: BookOpen },
         ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Icon size={14} className="text-text-muted" />
+          <div key={label} className="bg-[#101010] border border-border/70 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Icon size={13} className="text-text-muted" />
               <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">{label}</span>
             </div>
-            <p className="text-2xl font-bold text-text-primary">{value}</p>
+            <p className="text-2xl font-clash font-bold text-text-primary">{value}</p>
           </div>
         ))}
       </div>
