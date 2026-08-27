@@ -1,40 +1,47 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { projectsApi } from "@/lib/api";
 import { Project } from "@/types";
-import { Plus, Filter, ChevronDown, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
-import Link from "next/link";
-import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import {
+  Plus,
+  Filter,
+  ExternalLink,
+  ChevronDown,
+  Sparkles,
+} from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminDataTable } from "@/components/admin/ui/AdminDataTable";
 import { AdminBadge } from "@/components/admin/ui/AdminBadge";
 import { AdminButton } from "@/components/admin/ui/AdminButton";
-import { AdminDataTable } from "@/components/admin/ui/AdminDataTable";
 import { AdminRowActions } from "@/components/admin/ui/AdminRowActions";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Filter states
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  // Delete modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingTitle, setPendingTitle] = useState("");
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const fetchProjects = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-
     try {
       const res = await projectsApi.getAllAdmin();
       setProjects(res.data.data || []);
     } catch {
-      toast.error("Failed to fetch projects");
+      toast.error("Failed to load projects");
     } finally {
       setIsLoading(false);
       if (isManualRefresh) setIsRefreshing(false);
@@ -46,38 +53,85 @@ export default function AdminProjectsPage() {
   }, [fetchProjects]);
 
   const requestDelete = (id: string, title: string) => {
-    setPendingId(id);
+    setPendingDeleteId(id);
     setPendingTitle(title);
     setConfirmOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!pendingId) return;
+    if (!pendingDeleteId) return;
     setConfirmLoading(true);
     try {
-      await projectsApi.delete(pendingId);
-      toast.success("Project deleted");
-      fetchProjects();
+      await projectsApi.delete(pendingDeleteId);
+      toast.success("Project deleted successfully");
+      setProjects((prev) => prev.filter((p) => p._id !== pendingDeleteId));
+      setConfirmOpen(false);
     } catch {
       toast.error("Failed to delete project");
     } finally {
       setConfirmLoading(false);
-      setPendingId(null);
-      setPendingTitle("");
+      setPendingDeleteId(null);
     }
   };
 
-  const handleTogglePublish = async (p: Project) => {
+  const handleTogglePublish = async (project: Project) => {
+    const nextState = !project.published;
     try {
-      await projectsApi.update(p._id, { published: !p.published });
-      toast.success(p.published ? "Project unpublished" : "Project published");
+      await projectsApi.update(project._id, { published: nextState });
       setProjects((prev) =>
-        prev.map((item) =>
-          item._id === p._id ? { ...item, published: !item.published } : item
-        )
+        prev.map((p) => (p._id === project._id ? { ...p, published: nextState } : p))
       );
+      toast.success(nextState ? "Project published live" : "Project converted to draft");
     } catch {
       toast.error("Failed to update project status");
+    }
+  };
+
+  const handleDuplicate = async (project: Project) => {
+    try {
+      const copyPayload = {
+        ...project,
+        _id: undefined,
+        title: `${project.title} (Copy)`,
+        slug: `${project.slug || "project"}-copy-${Date.now().toString().slice(-4)}`,
+        published: false,
+      };
+      await projectsApi.create(copyPayload);
+      toast.success("Project duplicated as draft");
+      fetchProjects(true);
+    } catch {
+      toast.error("Failed to duplicate project");
+    }
+  };
+
+  const handleBulkPublish = async (selected: Project[]) => {
+    try {
+      await Promise.all(selected.map((p) => projectsApi.update(p._id, { published: true })));
+      toast.success(`Published ${selected.length} projects`);
+      fetchProjects(true);
+    } catch {
+      toast.error("Failed to publish selected projects");
+    }
+  };
+
+  const handleBulkUnpublish = async (selected: Project[]) => {
+    try {
+      await Promise.all(selected.map((p) => projectsApi.update(p._id, { published: false })));
+      toast.success(`Unpublished ${selected.length} projects`);
+      fetchProjects(true);
+    } catch {
+      toast.error("Failed to unpublish selected projects");
+    }
+  };
+
+  const handleBulkDelete = async (selected: Project[]) => {
+    if (!confirm(`Permanently delete ${selected.length} selected projects?`)) return;
+    try {
+      await Promise.all(selected.map((p) => projectsApi.delete(p._id)));
+      toast.success(`Deleted ${selected.length} projects`);
+      fetchProjects(true);
+    } catch {
+      toast.error("Failed to delete selected projects");
     }
   };
 
@@ -113,7 +167,7 @@ export default function AdminProjectsPage() {
           checked={table.getIsAllPageRowsSelected()}
           onChange={table.getToggleAllPageRowsSelectedHandler()}
           aria-label="Select all"
-          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+          className="rounded border-white/[0.2] bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
         />
       ),
       cell: ({ row }) => (
@@ -122,7 +176,7 @@ export default function AdminProjectsPage() {
           checked={row.getIsSelected()}
           onChange={row.getToggleSelectedHandler()}
           aria-label="Select row"
-          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+          className="rounded border-white/[0.2] bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
         />
       ),
       enableSorting: false,
@@ -137,7 +191,7 @@ export default function AdminProjectsPage() {
 
         return (
           <div className="flex items-center gap-3 min-w-[200px]">
-            <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-border/50 flex-shrink-0 overflow-hidden flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex-shrink-0 overflow-hidden flex items-center justify-center">
               {thumbnail ? (
                 <img src={thumbnail} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -152,7 +206,7 @@ export default function AdminProjectsPage() {
                 {p.title}
               </Link>
               {p.shortDescription && (
-                <p className="text-[11px] text-text-muted truncate max-w-xs leading-tight mt-0.5">
+                <p className="text-[11px] text-text-muted truncate max-w-xs leading-tight mt-0.5 font-body">
                   {p.shortDescription}
                 </p>
               )}
@@ -162,29 +216,33 @@ export default function AdminProjectsPage() {
       },
     },
     {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => (
+        <span className="text-text-secondary capitalize text-[11px] font-mono">
+          {row.original.category || "General"}
+        </span>
+      ),
+    },
+    {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const p = row.original;
+        const status = row.original.status || "idea";
         return (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <AdminBadge variant={p.status as any} dot>
-              {p.status}
-            </AdminBadge>
-            <AdminBadge variant={p.published ? "published" : "draft"}>
-              {p.published ? "Live" : "Draft"}
-            </AdminBadge>
-          </div>
+          <AdminBadge variant={status as any} dot>
+            {status}
+          </AdminBadge>
         );
       },
     },
     {
-      accessorKey: "category",
-      header: "Category",
+      accessorKey: "published",
+      header: "Visibility",
       cell: ({ row }) => (
-        <span className="text-text-secondary font-mono text-[11px] capitalize">
-          {row.original.category || "—"}
-        </span>
+        <AdminBadge variant={row.original.published ? "published" : "draft"}>
+          {row.original.published ? "LIVE" : "DRAFT"}
+        </AdminBadge>
       ),
     },
     {
@@ -193,7 +251,7 @@ export default function AdminProjectsPage() {
       cell: ({ row }) =>
         row.original.featured ? (
           <AdminBadge variant="featured">
-            <Sparkles size={10} className="inline mr-1" />
+            <Sparkles size={10} className="mr-1" />
             Featured
           </AdminBadge>
         ) : (
@@ -217,13 +275,17 @@ export default function AdminProjectsPage() {
       header: "",
       cell: ({ row }) => {
         const p = row.original;
+        const publicUrl = typeof window !== "undefined" && p.slug ? `${window.location.origin}/projects/${p.slug}` : undefined;
+
         return (
           <div className="text-right">
             <AdminRowActions
               editHref={`/admin/projects/${p._id}/edit`}
               previewHref={p.slug ? `/projects/${p.slug}` : undefined}
+              copyUrl={publicUrl}
               isPublished={p.published}
               onTogglePublish={() => handleTogglePublish(p)}
+              onDuplicate={() => handleDuplicate(p)}
               onDelete={() => requestDelete(p._id, p.title)}
             />
           </div>
@@ -238,15 +300,15 @@ export default function AdminProjectsPage() {
   const filterControls = (
     <>
       {/* Status Filter */}
-      <div className="relative">
+      <div className="flex items-center gap-2 h-9 px-3 bg-white/[0.02] border border-white/[0.08] rounded-lg hover:border-white/[0.15] focus-within:border-primary/50 transition-colors shrink-0">
         <Filter
           size={12}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+          className="text-text-muted shrink-0 pointer-events-none"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-7.5 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+          className="bg-transparent border-0 p-0 pr-3 text-xs font-body text-text-secondary focus:outline-none appearance-none cursor-pointer [&>option]:bg-[#111] [&>option]:text-text-primary"
         >
           <option value="all">All Status</option>
           <option value="published">Published</option>
@@ -257,18 +319,18 @@ export default function AdminProjectsPage() {
           <option value="archived">Archived</option>
         </select>
         <ChevronDown
-          size={12}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+          size={11}
+          className="text-text-muted shrink-0 pointer-events-none"
         />
       </div>
 
       {/* Category Filter */}
       {categories.length > 0 && (
-        <div className="relative">
+        <div className="flex items-center gap-2 h-9 px-3 bg-white/[0.02] border border-white/[0.08] rounded-lg hover:border-white/[0.15] focus-within:border-primary/50 transition-colors shrink-0">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-3 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer capitalize"
+            className="bg-transparent border-0 p-0 pr-3 text-xs font-body text-text-secondary focus:outline-none appearance-none cursor-pointer capitalize [&>option]:bg-[#111] [&>option]:text-text-primary"
           >
             <option value="all">All Categories</option>
             {categories.map((c) => (
@@ -278,8 +340,8 @@ export default function AdminProjectsPage() {
             ))}
           </select>
           <ChevronDown
-            size={12}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+            size={11}
+            className="text-text-muted shrink-0 pointer-events-none"
           />
         </div>
       )}
@@ -321,6 +383,9 @@ export default function AdminProjectsPage() {
         searchPlaceholder="Search projects by title, category…"
         filterControls={filterControls}
         enableSelection={true}
+        onBulkPublish={handleBulkPublish}
+        onBulkUnpublish={handleBulkUnpublish}
+        onBulkDelete={handleBulkDelete}
         enableColumnVisibility={true}
         enablePagination={true}
         pageSize={25}
@@ -363,8 +428,10 @@ export default function AdminProjectsPage() {
             <AdminRowActions
               editHref={`/admin/projects/${p._id}/edit`}
               previewHref={p.slug ? `/projects/${p.slug}` : undefined}
+              copyUrl={typeof window !== "undefined" && p.slug ? `${window.location.origin}/projects/${p.slug}` : undefined}
               isPublished={p.published}
               onTogglePublish={() => handleTogglePublish(p)}
+              onDuplicate={() => handleDuplicate(p)}
               onDelete={() => requestDelete(p._id, p.title)}
             />
           </div>

@@ -37,9 +37,9 @@ function categorizeSkill(skill: Skill): string {
 export function SkillsSection({ skills = [], hideHeader = false }: SkillsSectionProps) {
   const publishedSkills = skills.filter((s) => s.published !== false);
 
-  // 1. Separate Active Foundation from Roadmap
-  const inProgressSkills = publishedSkills.filter(
-    (s) => s.status === "in-progress" || s.status === "learning" || s.status === "practicing"
+  // 1. Foundation Skills (Active and Completed milestones)
+  const foundationSkills = publishedSkills.filter(
+    (s) => s.status === "in-progress" || s.status === "learning" || s.status === "practicing" || s.status === "completed"
   );
 
   const roadmapSkills = publishedSkills.filter(
@@ -60,7 +60,7 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
 
   return (
     <section
-      className={hideHeader ? "py-12 md:py-20 bg-bg" : "section border-t border-border bg-bg"}
+      className={hideHeader ? "py-16 sm:py-20 md:py-24 bg-bg" : "section border-t border-border bg-bg"}
       id="skills"
       aria-labelledby="skills-heading"
     >
@@ -87,21 +87,25 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
           </SlideUp>
         )}
 
-        {/* ── 01 / FOUNDATION IN PROGRESS ─────────────────────────── */}
-        {inProgressSkills.length > 0 && (
+        {/* ── 01 / FOUNDATIONS & VERIFIED COMPETENCY ───────────── */}
+        {foundationSkills.length > 0 && (
           <div className="mb-16 sm:mb-20">
             <SlideUp>
               <div className="flex items-center gap-3 mb-6 pb-3 border-b border-border">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                 <h3 className="font-mono text-xs tracking-widest text-text-primary uppercase">
-                  01 / FOUNDATION IN PROGRESS
+                  01 / FOUNDATIONS & VERIFIED COMPETENCY
                 </h3>
               </div>
             </SlideUp>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {inProgressSkills.map((skill) => {
-                const progressVal = typeof skill.progress === "number" && skill.progress > 0 ? skill.progress : 89;
+              {foundationSkills.map((skill) => {
+                const isCompleted = skill.status === "completed" || (skill.progress ?? 0) >= 100;
+                const progressVal = isCompleted
+                  ? 100
+                  : (typeof skill.progress === "number" && skill.progress > 0 ? skill.progress : 89);
+
                 return (
                   <SlideUp key={skill._id} delay={0.05}>
                     <div className="p-6 sm:p-8 rounded-2xl bg-bg-card border border-border hover:border-accent/40 transition-colors">
@@ -109,7 +113,7 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
                         <h4 className="font-display font-bold text-2xl sm:text-3xl text-text-primary tracking-tight">
                           {skill.name}
                         </h4>
-                        <span className="font-mono font-bold text-xl sm:text-2xl text-accent tabular-nums">
+                        <span className={`font-mono font-bold text-xl sm:text-2xl tabular-nums ${isCompleted ? "text-emerald-400" : "text-accent"}`}>
                           {progressVal}%
                         </span>
                       </div>
@@ -122,14 +126,16 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
                       {/* Unified Progress Bar */}
                       <div className="w-full h-1.5 bg-border-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-accent rounded-full transition-all duration-1000 ease-out"
+                          className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? "bg-emerald-400" : "bg-accent"}`}
                           style={{ width: `${progressVal}%` }}
                         />
                       </div>
                       
                       <div className="flex items-center justify-between mt-3 text-[11px] font-mono text-text-tertiary">
-                        <span>ACTIVE CURRICULUM</span>
-                        <span className="text-accent">IN PROGRESS</span>
+                        <span>{isCompleted ? "VERIFIED FOUNDATION" : "ACTIVE CURRICULUM"}</span>
+                        <span className={isCompleted ? "text-emerald-400 font-semibold" : "text-accent"}>
+                          {isCompleted ? "COMPLETED" : "IN PROGRESS"}
+                        </span>
                       </div>
                     </div>
                   </SlideUp>
@@ -152,7 +158,7 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
             </SlideUp>
 
             {/* Editorial Multi-Column List Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 lg:gap-x-12 gap-y-8 sm:gap-y-10">
               {sortedCategories.map((catKey, idx) => {
                 const catInfo = CATEGORY_MAP[catKey] || { label: catKey.toUpperCase() };
                 const catSkills = groups[catKey] || [];
@@ -161,11 +167,11 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
                   <SlideUp key={catKey} delay={0.04 * idx}>
                     <div className="flex flex-col">
                       {/* Structural Heading */}
-                      <div className="pb-2.5 mb-3 border-b border-border flex items-baseline justify-between">
+                      <div className="pb-3 mb-3.5 border-b border-border flex items-baseline justify-between">
                         <h4 className="font-mono text-[11px] font-semibold tracking-widest uppercase text-text-secondary">
                           {catInfo.label}
                         </h4>
-                        <span className="font-mono text-[10px] text-text-tertiary">
+                        <span className="font-mono text-[10.5px] text-text-tertiary">
                           {String(catSkills.length).padStart(2, "0")}
                         </span>
                       </div>
@@ -175,12 +181,12 @@ export function SkillsSection({ skills = [], hideHeader = false }: SkillsSection
                         {catSkills.map((skill) => (
                           <div
                             key={skill._id}
-                            className="py-2.5 flex items-center justify-between gap-3 text-left group hover:pl-1 transition-all"
+                            className="py-3 px-1 flex items-center justify-between gap-4 text-left group hover:pl-2 transition-all"
                           >
-                            <span className="text-[14px] font-medium text-text-primary group-hover:text-accent transition-colors">
+                            <span className="text-[14.5px] font-medium text-text-primary group-hover:text-accent transition-colors">
                               {skill.name}
                             </span>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary">
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary shrink-0">
                               PLANNED
                             </span>
                           </div>

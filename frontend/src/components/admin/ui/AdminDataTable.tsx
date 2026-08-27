@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -21,6 +21,10 @@ import {
   Search,
   Check,
   RefreshCw,
+  Eye,
+  EyeOff,
+  Trash2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminTablePagination } from "./AdminTablePagination";
@@ -42,6 +46,9 @@ interface AdminDataTableProps<TData, TValue> {
   onEmptyAction?: () => void;
   enableSelection?: boolean;
   onRowSelectionChange?: (selectedRows: TData[]) => void;
+  onBulkPublish?: (selectedRows: TData[]) => void;
+  onBulkUnpublish?: (selectedRows: TData[]) => void;
+  onBulkDelete?: (selectedRows: TData[]) => void;
   enableColumnVisibility?: boolean;
   enablePagination?: boolean;
   pageSize?: number;
@@ -67,6 +74,9 @@ export function AdminDataTable<TData, TValue>({
   onEmptyAction,
   enableSelection = false,
   onRowSelectionChange,
+  onBulkPublish,
+  onBulkUnpublish,
+  onBulkDelete,
   enableColumnVisibility = true,
   enablePagination = true,
   pageSize = 25,
@@ -81,6 +91,7 @@ export function AdminDataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const columnDropdownRef = useRef<HTMLDivElement>(null);
 
   // Table instance configuration
@@ -133,67 +144,70 @@ export function AdminDataTable<TData, TValue>({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isColumnDropdownOpen]);
 
-  const selectedCount = Object.keys(rowSelection).length;
+  const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
+  const selectedCount = selectedRows.length;
   const filteredRows = table.getRowModel().rows;
 
   return (
     <div className={cn("space-y-4 w-full", className)}>
-      {/* ── Editorial Toolbar: Search, Filters, Columns ────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-2.5 sm:p-3 rounded-xl bg-[#0d0d0d] border border-white/[0.08]">
+      {/* ── Editorial Toolbar: Search, Filters, Columns, Density ─ */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 rounded-xl bg-[#0d0d0d] border border-white/[0.08] w-full min-w-0">
         {/* Left Side: Search & Optional Filter Selects */}
-        <div className="flex items-center gap-2 flex-1 flex-wrap sm:flex-nowrap min-w-0">
-          {/* Global Search Input */}
-          <div className="relative flex-1 min-w-[200px] max-w-md">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0">
+          {/* Global Search Input (Pure Flex Container) */}
+          <div className="flex items-center gap-2.5 h-9 px-3.5 w-full sm:w-auto sm:flex-1 sm:min-w-[220px] sm:max-w-xs bg-white/[0.02] border border-white/[0.08] rounded-lg focus-within:border-primary/50 focus-within:bg-white/[0.04] transition-colors">
             <Search
               size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+              className="text-text-muted shrink-0 pointer-events-none"
             />
             <input
               type="text"
               placeholder={searchPlaceholder}
               value={globalFilter ?? ""}
               onChange={(e) => setGlobalFilter(e.target.value)}
-              className="w-full h-9 bg-white/[0.02] border border-white/[0.08] rounded-lg pl-8.5 pr-3 text-xs font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors"
+              className="w-full bg-transparent border-0 p-0 text-xs font-body text-text-primary placeholder:text-text-muted focus:outline-none"
             />
           </div>
 
-          {/* Custom Filter Selects passed as children/props */}
-          {filterControls && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {filterControls}
-            </div>
-          )}
+          {/* Custom Filter Selects and Refresh */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {filterControls}
 
-          {/* Refresh button */}
-          {onRefresh && (
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="p-2 h-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer disabled:opacity-50"
-              title="Refresh data"
-              aria-label="Refresh data"
-            >
-              <RefreshCw
-                size={13}
-                className={cn(isRefreshing && "animate-spin text-primary")}
-              />
-            </button>
-          )}
+            {/* Refresh button */}
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="p-2 h-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                title="Refresh data"
+                aria-label="Refresh data"
+              >
+                <RefreshCw
+                  size={13}
+                  className={cn(isRefreshing && "animate-spin text-primary")}
+                />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Right Side: Columns Toggle & Custom Action Cluster */}
-        <div className="flex items-center gap-2.5 shrink-0 self-end md:self-auto">
-          {/* Selected count pill */}
-          {enableSelection && selectedCount > 0 && (
-            <span className="text-[11px] font-mono text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-md">
-              {selectedCount} selected
-            </span>
-          )}
+        {/* Right Side: Density, Columns Toggle & Custom Actions */}
+        <div className="flex items-center gap-2.5 shrink-0 self-start lg:self-auto">
+          {/* Density Toggle (Desktop) */}
+          <button
+            type="button"
+            onClick={() => setDensity((d) => (d === "comfortable" ? "compact" : "comfortable"))}
+            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] text-xs font-mono text-text-muted hover:text-text-primary transition-colors cursor-pointer shrink-0"
+            title={`Density: ${density === "comfortable" ? "Comfortable (Click for Compact)" : "Compact (Click for Comfortable)"}`}
+          >
+            <SlidersHorizontal size={12} />
+            <span className="capitalize">{density}</span>
+          </button>
 
           {/* Columns Visibility Dropdown */}
           {enableColumnVisibility && (
-            <div className="relative" ref={columnDropdownRef}>
+            <div className="relative shrink-0" ref={columnDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsColumnDropdownOpen((prev) => !prev)}
@@ -247,6 +261,61 @@ export function AdminDataTable<TData, TValue>({
         </div>
       </div>
 
+      {/* ── Floating Contextual Bulk Actions Bar ────────────────── */}
+      {enableSelection && selectedCount > 0 && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[#141414] border border-primary/30 shadow-xl animate-in fade-in slide-in-from-top-1 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="font-mono text-[11px] font-bold text-text-primary">
+              {selectedCount} {selectedCount === 1 ? "item" : "items"} selected
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onBulkPublish && (
+              <button
+                type="button"
+                onClick={() => onBulkPublish(selectedRows)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-text-primary font-medium transition-colors cursor-pointer"
+              >
+                <Eye size={12} className="text-emerald-400" />
+                <span>Publish</span>
+              </button>
+            )}
+
+            {onBulkUnpublish && (
+              <button
+                type="button"
+                onClick={() => onBulkUnpublish(selectedRows)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-text-secondary hover:text-text-primary font-medium transition-colors cursor-pointer"
+              >
+                <EyeOff size={12} className="text-text-muted" />
+                <span>Unpublish</span>
+              </button>
+            )}
+
+            {onBulkDelete && (
+              <button
+                type="button"
+                onClick={() => onBulkDelete(selectedRows)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 font-medium transition-colors cursor-pointer"
+              >
+                <Trash2 size={12} />
+                <span>Delete</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setRowSelection({})}
+              className="text-[11px] font-mono text-text-muted hover:text-text-primary underline ml-2 cursor-pointer"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Table & Editorial Row Content ──────────────────────── */}
       {isLoading ? (
         <div className="rounded-xl border border-white/[0.08] bg-[#0d0d0d] p-4 space-y-3 overflow-hidden">
@@ -294,12 +363,13 @@ export function AdminDataTable<TData, TValue>({
                         <th
                           key={header.id}
                           className={cn(
-                            "py-3.5 px-4 font-medium select-none",
+                            header.id === "select" ? "w-10 px-3 text-center" : "px-4 font-medium select-none whitespace-nowrap",
+                            density === "compact" ? "py-2.5" : "py-3.5",
                             canSort && "cursor-pointer hover:text-text-primary transition-colors"
                           )}
                           onClick={header.column.getToggleSortingHandler()}
                         >
-                          <div className="flex items-center gap-1.5">
+                          <div className={cn("flex items-center gap-2", header.id === "select" && "justify-center")}>
                             {flexRender(
                               header.column.columnDef.header,
                               header.getContext()
@@ -335,7 +405,13 @@ export function AdminDataTable<TData, TValue>({
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="py-3.5 px-4 align-middle">
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          cell.column.id === "select" ? "w-10 px-3 text-center" : "px-4 align-middle",
+                          density === "compact" ? "py-2.5" : "py-4"
+                        )}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

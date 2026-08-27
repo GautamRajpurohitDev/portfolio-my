@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -29,9 +29,12 @@ import {
   Search,
   History,
   ShieldCheck,
+  Star,
+  WifiOff,
 } from "lucide-react";
 import { AdminCommandPalette } from "@/components/admin/ui/AdminCommandPalette";
 import { AdminCreateMenu } from "@/components/admin/ui/AdminCreateMenu";
+import { useAdminWorkspace } from "@/hooks/useAdminWorkspace";
 
 // ── Layout Constants ──────────────────────────────────────────
 const SIDEBAR_EXPANDED_WIDTH = "w-[240px]";
@@ -94,6 +97,8 @@ const NAV_GROUPS: AdminNavGroupType[] = [
   },
 ];
 
+const ALL_NAV_ITEMS: AdminNavItemType[] = NAV_GROUPS.flatMap((g) => g.items);
+
 function NavItem({
   item,
   pathname,
@@ -115,28 +120,19 @@ function NavItem({
       title={isCollapsed ? item.name : undefined}
       aria-label={item.name}
       className={`
-        relative flex items-center h-8.5 w-full rounded-md text-[13px]
+        relative flex items-center h-8.5 w-full rounded text-[13px]
         transition-colors duration-150 group outline-none select-none
         focus-visible:ring-1 focus-visible:ring-primary/50
         ${
           isActive
-            ? "bg-white/[0.04] text-text-primary font-semibold"
-            : "text-text-secondary hover:text-text-primary hover:bg-white/[0.02]"
+            ? "bg-white/[0.04] text-text-primary font-medium border-l-2 border-primary"
+            : "text-text-secondary hover:text-text-primary hover:bg-white/[0.02] border-l-2 border-transparent"
         }
         ${isCollapsed ? "justify-center px-0" : "px-3 gap-2.5"}
       `}
     >
-      {/* Active Left Indicator Bar */}
-      {isActive && (
-        <span
-          className="absolute left-0 top-1.5 bottom-1.5 w-[2px] bg-primary rounded-r"
-          aria-hidden="true"
-        />
-      )}
-
       <Icon
-        size={15}
-        strokeWidth={isActive ? 2 : 1.5}
+        size={14}
         className={`flex-shrink-0 transition-colors duration-150 ${
           isActive
             ? "text-primary"
@@ -144,12 +140,10 @@ function NavItem({
         }`}
       />
       {!isCollapsed && (
-        <span className="flex-1 leading-none truncate whitespace-nowrap font-body text-xs">
-          {item.name}
-        </span>
+        <span className="truncate font-body">{item.name}</span>
       )}
-      {!isCollapsed && isActive && (
-        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+      {isActive && (
+        <span className="absolute right-2 w-1 h-1 rounded-full bg-primary" />
       )}
     </Link>
   );
@@ -160,75 +154,91 @@ function SidebarContent({
   logout,
   isCollapsed,
   onToggleCollapse,
+  pinnedRoutes = [],
 }: {
   pathname: string | null;
   logout: () => void;
   isCollapsed: boolean;
   onToggleCollapse?: () => void;
+  pinnedRoutes?: string[];
 }) {
+  const pinnedNavItems = useMemo(() => {
+    return ALL_NAV_ITEMS.filter((item) => pinnedRoutes.includes(item.href));
+  }, [pinnedRoutes]);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#080808]">
-      {/* ── Fixed Sidebar Header ─────────────────────────────── */}
-      <div
-        className={`p-4 border-b border-white/[0.08] flex items-center justify-between relative flex-shrink-0 ${
-          isCollapsed ? "flex-col gap-2.5" : ""
-        }`}
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
-            <span className="text-[11px] font-clash font-bold text-primary tracking-wider">
-              GR
-            </span>
+    <div className="flex flex-col h-full select-none">
+      {/* ── Brand Header Rail ─────────────────────────────────── */}
+      <div className="h-12 border-b border-white/[0.08] px-3.5 flex items-center justify-between flex-shrink-0">
+        <Link
+          href="/admin"
+          className="flex items-center gap-2.5 min-w-0 outline-none group"
+        >
+          <div className="w-6 h-6 rounded bg-primary/10 border border-primary/30 flex items-center justify-center text-[10px] font-clash font-bold text-primary shrink-0 group-hover:border-primary transition-colors">
+            GR
           </div>
           {!isCollapsed && (
-            <div className="min-w-0">
-              <h2 className="text-xs font-clash font-bold text-text-primary tracking-wide uppercase truncate leading-tight">
-                Gautam Rajpurohit
-              </h2>
-              <p className="text-[9.5px] font-mono text-primary/80 tracking-widest uppercase mt-0.5">
+            <div className="min-w-0 leading-tight">
+              <span className="font-clash font-bold text-[11px] text-text-primary tracking-wide uppercase truncate block">
+                GAUTAM RAJPUROHIT
+              </span>
+              <span className="text-[9px] font-mono text-primary uppercase tracking-widest block opacity-90">
                 ADMIN / OS
-              </p>
+              </span>
             </div>
           )}
-        </div>
+        </Link>
 
         {onToggleCollapse && (
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-white/[0.05] transition-colors cursor-pointer"
+            className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-white/[0.04] transition-colors cursor-pointer"
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
-              <PanelLeftOpen size={14} />
+              <PanelLeftOpen size={13} />
             ) : (
-              <PanelLeftClose size={14} />
+              <PanelLeftClose size={13} />
             )}
           </button>
         )}
       </div>
 
-      {/* ── Scrollable Technical Navigation Rail ─────────────── */}
+      {/* ── Navigation Group Items ────────────────────────────── */}
       <nav
-        className="flex-1 overflow-y-auto px-3 py-4 space-y-5 select-none custom-scrollbar"
+        className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4 admin-scrollbar font-body"
         aria-label="Admin Navigation"
       >
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="space-y-1">
-            {!isCollapsed ? (
-              <div className="px-3 pb-1 pt-1 flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-primary tracking-wider">
-                  {group.number}
-                </span>
-                <span className="text-[10px] font-mono text-text-muted tracking-widest uppercase">
-                  / {group.label}
-                </span>
-              </div>
-            ) : (
-              <div className="h-px bg-white/[0.08] my-2 mx-1" />
-            )}
+        {/* Pinned Favorites Section */}
+        {pinnedNavItems.length > 0 && !isCollapsed && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 text-[9px] font-mono text-primary font-bold tracking-[0.18em] uppercase">
+              <Star size={9} className="fill-primary" />
+              <span>FAVORITES</span>
+            </div>
+            <div className="space-y-0.5">
+              {pinnedNavItems.map((item) => (
+                <NavItem
+                  key={`fav-${item.href}`}
+                  item={item}
+                  pathname={pathname}
+                  isCollapsed={isCollapsed}
+                />
+              ))}
+            </div>
+            <div className="h-px bg-white/[0.04] my-2" />
+          </div>
+        )}
 
+        {NAV_GROUPS.map((group) => (
+          <div key={group.number} className="space-y-1">
+            {!isCollapsed && (
+              <div className="px-2.5 py-0.5 text-[9px] font-mono text-text-muted font-bold tracking-[0.18em] uppercase">
+                {group.number} / {group.label}
+              </div>
+            )}
             <div className="space-y-0.5">
               {group.items.map((item) => (
                 <NavItem
@@ -243,126 +253,120 @@ function SidebarContent({
         ))}
       </nav>
 
-      {/* ── Fixed Sidebar Footer ─────────────────────────────── */}
-      <div className="p-3 border-t border-white/[0.08] flex-shrink-0 bg-[#080808]">
+      {/* ── Operator Footer ───────────────────────────────────── */}
+      <div className="border-t border-white/[0.08] p-2.5 flex-shrink-0">
         <button
           onClick={logout}
-          title={isCollapsed ? "Sign out" : undefined}
-          className={`
-            flex items-center h-8.5 w-full rounded text-xs font-body
-            text-text-muted hover:text-red-400 hover:bg-red-500/[0.06]
-            transition-colors duration-150 cursor-pointer
-            ${isCollapsed ? "justify-center px-0" : "px-3 gap-2.5"}
-          `}
           aria-label="Sign out"
+          className={`flex items-center gap-2.5 w-full h-8 px-2.5 rounded text-xs font-body text-text-muted hover:text-red-400 hover:bg-red-500/[0.06] transition-colors cursor-pointer ${
+            isCollapsed ? "justify-center px-0" : ""
+          }`}
+          title="Sign out of Admin"
         >
-          <LogOut size={14} className="flex-shrink-0 text-text-muted hover:text-red-400" />
-          {!isCollapsed && <span className="truncate">Sign out</span>}
+          <LogOut size={13} className="shrink-0" />
+          {!isCollapsed && <span>Sign out</span>}
         </button>
       </div>
     </div>
   );
 }
 
-// Simple Page Transition Animation
-const pageVariants = {
-  hidden: { opacity: 0, y: 4 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const },
-  },
-};
-
-function getBreadcrumb(pathname: string | null): {
-  section: string;
-  sectionHref: string;
-  current: string;
-} {
+function getBreadcrumb(pathname: string | null): { section: string; sectionHref: string; current: string } {
   if (!pathname || pathname === "/admin") {
-    return { section: "Console", sectionHref: "/admin", current: "Overview" };
-  }
-  const parts = pathname.replace(/^\/admin\/?/, "").split("/").filter(Boolean);
-  if (parts.length === 0) {
-    return { section: "Console", sectionHref: "/admin", current: "Overview" };
-  }
-  const main = parts[0];
-  const formattedMain = main.charAt(0).toUpperCase() + main.slice(1);
-
-  if (parts.length === 1) {
-    return {
-      section: "Workspace",
-      sectionHref: `/admin/${main}`,
-      current: formattedMain,
-    };
+    return { section: "CONSOLE", sectionHref: "/admin", current: "Overview" };
   }
 
-  const sub = parts[1];
-  let formattedSub = sub.charAt(0).toUpperCase() + sub.slice(1);
-  if (sub === "new") formattedSub = "Create New";
-  if (parts.length > 2 && parts[2] === "edit") formattedSub = "Edit";
+  const segments = pathname.split("/").filter(Boolean);
+  const resource = segments[1];
+  const action = segments[2];
 
-  return {
-    section: formattedMain,
-    sectionHref: `/admin/${main}`,
-    current: formattedSub,
-  };
+  const matched = ALL_NAV_ITEMS.find((item) => item.href === `/admin/${resource}`);
+  const resourceLabel = matched ? matched.name : resource ? resource.charAt(0).toUpperCase() + resource.slice(1) : "Overview";
+
+  if (action === "new") {
+    return { section: resourceLabel.toUpperCase(), sectionHref: `/admin/${resource}`, current: "Create Record" };
+  }
+  if (action && segments[3] === "edit") {
+    return { section: resourceLabel.toUpperCase(), sectionHref: `/admin/${resource}`, current: "Edit Record" };
+  }
+
+  return { section: "WORKSPACE", sectionHref: "/admin", current: resourceLabel };
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user, isLoading, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const { pinnedRoutes, isOnline } = useAdminWorkspace();
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Close mobile nav on route change
+  // Restore sidebar collapse state from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("admin_sidebar_collapsed");
+      if (saved !== null) {
+        setIsSidebarCollapsed(saved === "true");
+      }
+    } catch {}
+  }, []);
+
+  const toggleCollapse = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("admin_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ⌘K or Ctrl+K -> Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+      // Escape -> close mobile nav
+      if (e.key === "Escape" && isMobileNavOpen) {
+        setIsMobileNavOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileNavOpen]);
+
+  // Close mobile nav on route transition
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [pathname]);
 
-  // Handle escape key to close drawer
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isMobileNavOpen) {
-        setIsMobileNavOpen(false);
-      }
-    },
-    [isMobileNavOpen]
-  );
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
-  // Load collapse state from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("adminSidebarCollapsed");
-    if (saved === "true") setIsSidebarCollapsed(true);
-  }, []);
-
-  const toggleCollapse = () => {
-    const next = !isSidebarCollapsed;
-    setIsSidebarCollapsed(next);
-    localStorage.setItem("adminSidebarCollapsed", String(next));
-  };
-
+  // Auth gate
   useEffect(() => {
     if (!isLoading && !user && pathname !== "/admin/login") {
-      router.replace("/admin/login");
+      router.push("/admin/login");
     }
-  }, [isLoading, user, pathname, router]);
+  }, [user, isLoading, pathname, router]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-[10px] font-mono text-text-muted tracking-widest uppercase">
-            INITIALIZING OS…
-          </p>
+          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center animate-pulse">
+            <span className="text-xs font-clash font-bold text-primary">GR</span>
+          </div>
+          <span className="text-[11px] font-mono text-text-muted tracking-widest uppercase">
+            AUTHENTICATING SYSTEM…
+          </span>
         </div>
       </div>
     );
@@ -392,40 +396,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           logout={logout}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={toggleCollapse}
+          pinnedRoutes={pinnedRoutes}
         />
       </aside>
-
-      {/* ── Mobile Top Bar ────────────────────────────────────── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-12 border-b border-white/[0.08] bg-[#080808]/95 backdrop-blur-md z-40 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-primary/10 border border-primary/30 rounded flex items-center justify-center">
-            <span className="text-[10px] font-clash font-bold text-primary">GR</span>
-          </div>
-          <span className="text-xs font-clash font-bold tracking-wide uppercase">
-            ADMIN / OS
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className="p-1.5 rounded text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-            title="Search / Commands (Ctrl+K)"
-            aria-label="Search and Commands"
-          >
-            <Search size={15} />
-          </button>
-          <AdminCreateMenu />
-          <button
-            onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-            className="p-1.5 rounded text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-            aria-label="Toggle navigation"
-          >
-            {isMobileNavOpen ? <X size={17} /> : <Menu size={17} />}
-          </button>
-        </div>
-      </div>
 
       {/* ── Mobile Drawer ─────────────────────────────────────── */}
       <AnimatePresence>
@@ -450,14 +423,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 pathname={pathname}
                 logout={logout}
                 isCollapsed={false}
+                pinnedRoutes={pinnedRoutes}
               />
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* ── Main Application Shell ────────────────────────────── */}
+      {/* ── Main App Content ───────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+        {/* ── Mobile Top Header Bar (Natural Flow) ───────────────── */}
+        <header className="lg:hidden flex items-center justify-between h-14 border-b border-white/[0.08] bg-[#080808]/95 backdrop-blur-md px-4 flex-shrink-0 z-30">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-primary/10 border border-primary/30 rounded flex items-center justify-center">
+              <span className="text-[10px] font-clash font-bold text-primary">GR</span>
+            </div>
+            <span className="text-xs font-clash font-bold tracking-wide uppercase">
+              ADMIN / OS
+            </span>
+            {!isOnline && (
+              <span className="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-mono text-red-400 font-bold">
+                OFFLINE
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="p-1.5 rounded text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              title="Search / Commands (Ctrl+K)"
+              aria-label="Search and Commands"
+            >
+              <Search size={15} />
+            </button>
+            <AdminCreateMenu />
+            <button
+              onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+              className="p-1.5 rounded text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              aria-label="Toggle navigation"
+            >
+              {isMobileNavOpen ? <X size={17} /> : <Menu size={17} />}
+            </button>
+          </div>
+        </header>
+
         {/* ── Desktop Modern Top Header Bar ───────────────────── */}
         <header className="hidden lg:flex items-center justify-between h-12 px-8 border-b border-white/[0.08] bg-[#080808]/95 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
           {/* Breadcrumbs */}
@@ -483,7 +494,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="flex items-center gap-2 h-7 px-2.5 rounded border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] text-xs font-body text-text-muted hover:text-text-secondary transition-all cursor-pointer select-none"
               title="Search and commands (Ctrl + K)"
             >
-              <Search size={11} className="text-text-muted" />
+              <Search size={11} className="text-text-muted shrink-0" />
               <span className="hidden xl:inline text-text-muted text-[11px]">Command…</span>
               <kbd className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded bg-white/[0.05] border border-white/[0.08] text-[9px] font-mono text-text-muted">
                 ⌘K
@@ -494,19 +505,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminCreateMenu />
 
             {/* Live Indicator */}
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/[0.08] border border-emerald-500/20 text-[10px] font-mono text-emerald-400 select-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="uppercase tracking-wider hidden sm:inline">Online</span>
-            </div>
+            {isOnline ? (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/[0.08] border border-emerald-500/20 text-[10px] font-mono text-emerald-400 select-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="uppercase tracking-wider hidden sm:inline">Online</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/[0.08] border border-red-500/20 text-[10px] font-mono text-red-400 select-none">
+                <WifiOff size={10} className="shrink-0" />
+                <span className="uppercase tracking-wider">Offline</span>
+              </div>
+            )}
 
             {/* View Site */}
             <Link
               href="/"
               target="_blank"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono text-text-secondary hover:text-text-primary bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono text-text-secondary hover:text-text-primary bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] transition-all shrink-0"
             >
               <span>View Site</span>
-              <ExternalLink size={10} />
+              <ExternalLink size={10} className="shrink-0" />
             </Link>
 
             {/* Monogram Badge */}
@@ -519,16 +537,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* ── Main Scrollable Workspace Content ─────────────────── */}
-        <main className="flex-1 min-w-0 overflow-y-auto pt-12 lg:pt-0 relative">
-          <motion.div
-            key={pathname}
-            variants={pageVariants}
-            initial="hidden"
-            animate="visible"
-            className="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-10 py-8 min-h-full min-w-0"
-          >
+        <main className="flex-1 min-w-0 overflow-y-auto relative">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10 py-6 lg:py-8 min-h-full min-w-0">
             {children}
-          </motion.div>
+          </div>
         </main>
       </div>
     </div>

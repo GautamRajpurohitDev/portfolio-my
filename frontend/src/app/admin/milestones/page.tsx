@@ -205,15 +205,15 @@ export default function AdminMilestonesPage() {
   ], []);
 
   const filterControls = (
-    <div className="relative">
+    <div className="flex items-center gap-2 h-9 px-3 bg-white/[0.03] border border-border/70 rounded-lg hover:border-white/[0.15] focus-within:border-primary/50 transition-colors shrink-0">
       <Filter
         size={12}
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        className="text-text-muted shrink-0 pointer-events-none"
       />
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-7.5 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+        className="bg-transparent border-0 p-0 pr-3 text-xs font-body text-text-secondary focus:outline-none appearance-none cursor-pointer [&>option]:bg-[#111] [&>option]:text-text-primary"
       >
         <option value="all">All Status</option>
         <option value="completed">Completed</option>
@@ -221,8 +221,8 @@ export default function AdminMilestonesPage() {
         <option value="planned">Planned</option>
       </select>
       <ChevronDown
-        size={12}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        size={11}
+        className="text-text-muted shrink-0 pointer-events-none"
       />
     </div>
   );

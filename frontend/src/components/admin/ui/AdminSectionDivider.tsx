@@ -21,7 +21,7 @@ export function AdminSectionDivider({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-2.5 mb-4 border-b border-border/40 min-w-0",
+        "flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-3 mb-5 border-b border-border/40 min-w-0",
         className
       )}
     >

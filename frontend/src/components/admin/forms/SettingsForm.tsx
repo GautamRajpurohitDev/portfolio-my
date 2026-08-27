@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { settingsApi } from "@/lib/api";
+import { settingsApi, skillsApi, roadmapApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   Save, Plus, Trash2, BookText, Globe, Share2, Layout,
-  User, Eye, Map, FileText, ChevronDown, ChevronUp, ToggleLeft, ToggleRight,
+  User, Eye, Map, FileText, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Sparkles, CheckCircle2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -20,7 +20,7 @@ function Field({ label, hint, error, children }: {
   label: string; hint?: string; error?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <label className="block text-[11px] font-mono text-text-secondary uppercase tracking-wider">{label}</label>
       {hint && <p className="text-[11px] text-text-muted leading-relaxed font-body">{hint}</p>}
       {children}
@@ -34,11 +34,11 @@ function SettingsSection({ icon, title, children }: {
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <section className="bg-[#0d0d0d] border border-white/[0.08] rounded-xl overflow-hidden">
+    <section className="bg-[#0d0d0d] border border-white/[0.08] rounded-xl overflow-hidden mb-6 sm:mb-8">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-3 px-6 py-4 border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors cursor-pointer"
+        className="w-full flex items-center justify-between gap-3 px-6 sm:px-8 py-4.5 border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2.5">
           <span className="text-text-muted">{icon}</span>
@@ -46,7 +46,7 @@ function SettingsSection({ icon, title, children }: {
         </div>
         {open ? <ChevronUp size={14} className="text-text-muted" /> : <ChevronDown size={14} className="text-text-muted" />}
       </button>
-      {open && <div className="px-6 py-6 space-y-5">{children}</div>}
+      {open && <div className="px-6 sm:px-8 py-6 sm:py-8 space-y-6">{children}</div>}
     </section>
   );
 }
@@ -116,6 +116,18 @@ interface Props { settings: any | null }
 
 export default function SettingsForm({ settings: s }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [skillsList, setSkillsList] = useState<any[]>([]);
+  const [phasesList, setPhasesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    skillsApi.getAllAdmin().then((res: any) => {
+      if (res?.data?.data) setSkillsList(res.data.data);
+    }).catch(() => {});
+
+    roadmapApi.getAllPhases().then((res: any) => {
+      if (res?.data?.data) setPhasesList(res.data.data);
+    }).catch(() => {});
+  }, []);
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors, isDirty } } = useForm<any>({
     defaultValues: {
@@ -141,10 +153,15 @@ export default function SettingsForm({ settings: s }: Props) {
       },
       // Currently Learning
       currentlyLearning: {
-        primary:            s?.currentlyLearning?.primary            ?? "",
-        primaryDescription: s?.currentlyLearning?.primaryDescription ?? "",
-        next:               s?.currentlyLearning?.next               ?? "",
-        roadmap:            s?.currentlyLearning?.roadmap            ?? [],
+        currentLearningSkillId:     s?.currentlyLearning?.currentLearningSkillId     ?? "",
+        currentLearningPhaseId:     s?.currentlyLearning?.currentLearningPhaseId     ?? "",
+        nextPhaseId:                s?.currentlyLearning?.nextPhaseId                ?? "",
+        primary:                    s?.currentlyLearning?.primary                    ?? "",
+        primaryDescription:         s?.currentlyLearning?.primaryDescription         ?? "",
+        next:                       s?.currentlyLearning?.next                       ?? "",
+        roadmap:                    s?.currentlyLearning?.roadmap                    ?? [],
+        displayTitleOverride:       s?.currentlyLearning?.displayTitleOverride       ?? "",
+        displayDescriptionOverride: s?.currentlyLearning?.displayDescriptionOverride ?? "",
       },
       // Socials
       socials: {
@@ -364,17 +381,77 @@ export default function SettingsForm({ settings: s }: Props) {
 
         {/* ── Currently Learning ───────────────────────────────── */}
         <SettingsSection icon={<BookText size={14} />} title="Current Learning Focus">
-          <Field label="Primary Focus" hint="What are you actively learning right now?">
-            <input {...register("currentlyLearning.primary")} className={inputCls} placeholder="e.g. Git & GitHub" />
-          </Field>
-          <Field label="Focus Description">
-            <textarea {...register("currentlyLearning.primaryDescription")} rows={2} className={textareaCls}
-              placeholder="What specifically are you learning or building with this?" />
-          </Field>
-          <Field label="Up Next (Optional)">
-            <input {...register("currentlyLearning.next")} className={inputCls} placeholder="e.g. C Programming" />
-          </Field>
-          <Field label="Roadmap Items" hint="Ordered list of upcoming topics in your learning path.">
+          <div className="p-4 rounded-xl bg-accent/[0.04] border border-accent/20 mb-6 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-mono text-accent font-semibold uppercase tracking-wider">
+              <Sparkles size={13} />
+              <span>Explicit Reference Architecture</span>
+            </div>
+            <p className="text-[12px] text-text-secondary leading-relaxed font-body">
+              Current Learning is explicitly linked to canonical Skill and Roadmap records. Even when a skill is marked <strong>100% Completed</strong>, it remains selected until you deliberately switch it.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <Field label="Canonical Skill Focus" hint="Points to the primary skill record in your Skills CMS">
+              <select {...register("currentlyLearning.currentLearningSkillId")} className="w-full bg-[#111111] border border-white/[0.08] rounded px-3.5 py-2.5 text-xs text-text-primary focus:outline-none focus:border-primary/50 transition-colors font-body cursor-pointer">
+                <option value="">-- Select Skill --</option>
+                {skillsList.map((sk: any) => (
+                  <option key={sk._id} value={sk._id}>
+                    {sk.name} ({sk.status?.toUpperCase() || "PLANNED"} · {sk.progress ?? 0}%)
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Canonical Roadmap Phase" hint="Points to the associated curriculum phase">
+              <select {...register("currentlyLearning.currentLearningPhaseId")} className="w-full bg-[#111111] border border-white/[0.08] rounded px-3.5 py-2.5 text-xs text-text-primary focus:outline-none focus:border-primary/50 transition-colors font-body cursor-pointer">
+                <option value="">-- Select Roadmap Phase --</option>
+                {phasesList.map((ph: any) => (
+                  <option key={ph._id} value={ph._id}>
+                    Phase {String(ph.number ?? 0).padStart(2, "0")}: {ph.title} ({ph.progress ?? 0}%)
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <Field label="Next Phase / Target" hint="What phase or skill is next on your curriculum?">
+              <select {...register("currentlyLearning.nextPhaseId")} className="w-full bg-[#111111] border border-white/[0.08] rounded px-3.5 py-2.5 text-xs text-text-primary focus:outline-none focus:border-primary/50 transition-colors font-body cursor-pointer">
+                <option value="">-- Select Next Phase --</option>
+                {phasesList.map((ph: any) => (
+                  <option key={ph._id} value={ph._id}>
+                    Phase {String(ph.number ?? 0).padStart(2, "0")}: {ph.title}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Next Step Label (Fallback)" hint="Custom text if not linking to a phase">
+              <input {...register("currentlyLearning.next")} className={inputCls} placeholder="e.g. C Programming" />
+            </Field>
+          </div>
+
+          <div className="pt-4 border-t border-white/[0.06] space-y-4">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary block">
+              Optional Display Overrides
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <Field label="Title Override (Optional)" hint="Leave blank to use the Skill name">
+                <input {...register("currentlyLearning.displayTitleOverride")} className={inputCls} placeholder="Leave blank to inherit from Skill" />
+              </Field>
+              <Field label="Primary Fallback Title" hint="Used if no skill is selected">
+                <input {...register("currentlyLearning.primary")} className={inputCls} placeholder="e.g. Git & GitHub" />
+              </Field>
+            </div>
+
+            <Field label="Description Override (Optional)" hint="Leave blank to use the Skill's verified context">
+              <textarea {...register("currentlyLearning.displayDescriptionOverride")} rows={2} className={textareaCls}
+                placeholder="Leave blank to inherit from Skill record" />
+            </Field>
+          </div>
+
+          <Field label="Sequential Roadmap Steps" hint="Ordered list of upcoming learning milestones.">
             <div className="space-y-2">
               {roadmapFields.map((field, i) => (
                 <div key={field.id} className="flex gap-2">

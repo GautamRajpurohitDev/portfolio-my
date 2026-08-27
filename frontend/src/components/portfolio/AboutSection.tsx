@@ -46,7 +46,7 @@ export function AboutSection({ config, hideHeader = false }: AboutSectionProps) 
       ];
 
   return (
-    <section className={hideHeader ? "py-12 sm:py-16 md:py-20" : "section border-t border-border"} id="about" aria-labelledby="about-heading">
+    <section className={hideHeader ? "py-16 sm:py-20 md:py-24 bg-bg" : "section border-t border-border"} id="about" aria-labelledby="about-heading">
       <div className="container">
 
         {!hideHeader && (
@@ -107,11 +107,11 @@ export function AboutSection({ config, hideHeader = false }: AboutSectionProps) 
         </div>
 
         {/* ── AREAS I'M EXPLORING: CLEAN EDITORIAL LIST ───────── */}
-        <div className="pt-12 border-t border-border">
+        <div className="pt-16 sm:pt-20 border-t border-border">
           <SlideUp delay={0.2}>
-            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-8 pb-3 border-b border-border">
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-10 pb-4 border-b border-border">
               <div>
-                <span className="font-mono text-[11px] uppercase tracking-widest text-accent block mb-1">
+                <span className="font-mono text-[11px] uppercase tracking-widest text-accent block mb-1.5">
                   Focus Areas
                 </span>
                 <h3 className="font-display font-bold text-2xl sm:text-3xl text-text-primary uppercase tracking-tight">
@@ -128,7 +128,7 @@ export function AboutSection({ config, hideHeader = false }: AboutSectionProps) 
           </SlideUp>
 
           {/* Clean Open Editorial List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-10">
             {areas.map(({ title, description }) => (
               <SlideUp key={title} delay={0.04}>
                 <div className="flex items-start gap-3.5 group">
@@ -136,10 +136,10 @@ export function AboutSection({ config, hideHeader = false }: AboutSectionProps) 
                     →
                   </span>
                   <div>
-                    <h4 className="font-display font-semibold text-[16px] text-text-primary group-hover:text-accent transition-colors mb-1.5">
+                    <h4 className="font-display font-semibold text-[16px] text-text-primary group-hover:text-accent transition-colors mb-2">
                       {title}
                     </h4>
-                    <p className="text-[13.5px] text-text-secondary leading-relaxed">
+                    <p className="text-[13.5px] text-text-secondary leading-relaxed font-body">
                       {description}
                     </p>
                   </div>
@@ -151,7 +151,7 @@ export function AboutSection({ config, hideHeader = false }: AboutSectionProps) 
 
         {/* ── TIMELINE ────────────────────────────────────────── */}
         {config?.timeline && config.timeline.length > 0 && (
-          <div className="mt-20 pt-12 border-t border-border">
+          <div className="mt-24 pt-16 sm:pt-20 border-t border-border">
             <SlideUp>
               <h3 className="font-display font-bold text-2xl sm:text-3xl text-text-primary mb-10 uppercase tracking-tight">
                 CHRONOLOGY
@@ -162,15 +162,15 @@ export function AboutSection({ config, hideHeader = false }: AboutSectionProps) 
                 .sort((a, b) => a.order - b.order)
                 .map((item, i) => (
                   <SlideUp key={item.title + i} delay={0.08 + i * 0.04}>
-                    <div className="py-6 grid grid-cols-1 md:grid-cols-[140px_1fr] gap-3 md:gap-8">
+                    <div className="py-7 sm:py-9 grid grid-cols-1 md:grid-cols-[140px_1fr] gap-3 md:gap-8">
                       <div className="text-text-tertiary font-mono tracking-widest text-xs pt-0.5">
                         {item.year}
                       </div>
                       <div>
-                        <h4 className="font-display font-semibold text-[17px] text-text-primary mb-1.5">
+                        <h4 className="font-display font-semibold text-[17px] text-text-primary mb-2">
                           {item.title}
                         </h4>
-                        <p className="text-[14.5px] text-text-secondary leading-relaxed whitespace-pre-line">
+                        <p className="text-[14.5px] text-text-secondary leading-relaxed whitespace-pre-line font-body">
                           {item.description}
                         </p>
                       </div>

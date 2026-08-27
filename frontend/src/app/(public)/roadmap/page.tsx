@@ -3,12 +3,12 @@ import { RoadmapClientPage } from "./RoadmapClientPage";
 
 // ── Types ─────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 async function getRoadmapData() {
   try {
     const res = await fetch(`${API_BASE}/api/roadmap`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -20,7 +20,9 @@ async function getRoadmapData() {
 
 async function getSettings() {
   try {
-    const res = await fetch(`${API_BASE}/api/settings`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API_BASE}/api/settings`, {
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     const json = await res.json();
     return json?.data ?? null;

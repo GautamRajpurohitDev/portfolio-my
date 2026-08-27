@@ -128,37 +128,48 @@ export default async function HomePage({ searchParams }: Props) {
   ]);
 
   // ── Build the currentlyLearning config ────────────────────────
-  // Merge live roadmap data with Settings, prioritizing active domain progress
+  // Consumes canonical resolved settings directly without status-based filtering
   const baseConfig = config?.currentlyLearning || {};
-  const activeDomain = roadmapCurrent?.domains?.find((d: any) => d.status === "in-progress") || roadmapCurrent?.domains?.[0];
-  
-  const domainProgress = Number(activeDomain?.progress);
-  const phaseProgress = Number(roadmapCurrent?.phase?.progress);
-  const settingsProgress = Number(baseConfig.progress);
-
-  const selectedProgress = (!isNaN(domainProgress) && domainProgress > 0)
-    ? domainProgress
-    : (!isNaN(phaseProgress) && phaseProgress > 0)
-    ? phaseProgress
-    : (!isNaN(settingsProgress) && settingsProgress > 0)
-    ? settingsProgress
-    : 89;
-
-  const safeProgress = Math.min(100, Math.max(0, selectedProgress));
+  const activePhaseName = baseConfig.phaseTitle || roadmapCurrent?.phase?.title;
+  const activePhaseNumber = baseConfig.phaseNumber !== undefined ? baseConfig.phaseNumber : roadmapCurrent?.phase?.number;
+  const phaseLabel = activePhaseName
+    ? `PHASE ${String(activePhaseNumber ?? 0).padStart(2, "0")}: ${activePhaseName}`
+    : undefined;
 
   const learningConfig = {
-    primary:     activeDomain?.title                            || roadmapCurrent?.phase?.title || baseConfig.primary || "Git & GitHub",
-    description: activeDomain?.description
-                 || roadmapCurrent?.phase?.description
-                 || roadmapCurrent?.phase?.subtitle
-                 || baseConfig.primaryDescription
-                 || baseConfig.description
-                 || "Learning version control from first principles.",
-    progress: safeProgress,
-    next:     roadmapCurrent?.upNext                             || baseConfig.next         || "Pseudocode → C",
-    roadmap:  roadmapCurrent?.domains?.slice(0, 6).map((d: any) => d.title)
-              || baseConfig.roadmap
-              || ["Pseudocode & Logic", "C Programming", "C++ Fundamentals", "Data Structures & Algorithms"],
+    primary:
+      baseConfig.primary ||
+      roadmapCurrent?.phase?.title ||
+      "Git & GitHub",
+    description:
+      baseConfig.primaryDescription ||
+      roadmapCurrent?.phase?.description ||
+      roadmapCurrent?.phase?.subtitle ||
+      "Mastering version control from first principles.",
+    progress:
+      baseConfig.progress !== undefined
+        ? Number(baseConfig.progress)
+        : (roadmapCurrent?.phase?.progress !== undefined ? Number(roadmapCurrent.phase.progress) : 100),
+    status:
+      baseConfig.status ||
+      roadmapCurrent?.phase?.status ||
+      "in-progress",
+    next:
+      baseConfig.next ||
+      roadmapCurrent?.upNext ||
+      "C Programming",
+    roadmap:
+      baseConfig.roadmap?.length
+        ? baseConfig.roadmap
+        : (roadmapCurrent?.domains?.length
+            ? roadmapCurrent.domains.slice(0, 6).map((d: any) => d.title)
+            : [
+                "Pseudocode & Logic",
+                "C Programming",
+                "C++ Fundamentals",
+                "Data Structures & Algorithms",
+              ]),
+    phaseLabel,
   };
 
   // ── Default section order ─────────────────────────────────────

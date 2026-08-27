@@ -55,7 +55,7 @@ export function ContactSection({ config, hideHeader = false }: ContactSectionPro
 
   return (
     <section
-      className={hideHeader ? "py-12 md:py-20 bg-bg" : "section border-t border-border bg-bg"}
+      className={hideHeader ? "py-16 sm:py-20 md:py-24 bg-bg" : "section border-t border-border bg-bg"}
       id="contact"
       aria-labelledby="contact-heading"
     >

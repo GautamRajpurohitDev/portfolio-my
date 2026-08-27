@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import type { RoadmapPhase, RoadmapDomain, RoadmapTopic, RoadmapStatus } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ArrowRight, Map, Target } from "lucide-react";
-import { PublicPageShell } from "@/components/layout/PublicPageShell";
+import { PublicPageHeader, PublicPageShell } from "@/components/layout/PublicPageShell";
 
 interface RoadmapData {
   phases:  RoadmapPhase[];
@@ -44,55 +44,57 @@ export function RoadmapClientPage({ initialData, currentlyLearning }: Props) {
 
   const { phases, domains, topics } = initialData;
 
-  const inProgressPhase = phases.find((p) => p.status === "in-progress");
+  const inProgressPhase =
+    phases.find((p) => p.status === "in-progress") ||
+    phases.find((p) => p.status === "up-next") ||
+    phases[0];
+  const activeProgress = inProgressPhase?.progress ?? 0;
   const filteredPhases = filterStatus === "all"
     ? phases
     : phases.filter((p) => p.status === filterStatus);
 
   return (
     <PublicPageShell>
-      {/* ── Hero Header ───────────────────────────────────── */}
-      <header className="public-page-header">
-        <div className="container">
-          <div className="max-w-4xl">
-            <span className="public-page-header-eyebrow">02 / Curriculum</span>
-            
-            <h1 className="public-page-header-title mb-4">
-              Programming<br />
-              <span className="text-accent">Mastery Roadmap</span>
-            </h1>
-
-            <p className="public-page-header-subtitle mb-8">
-              A structured curriculum from computer science fundamentals and low-level systems to full-stack engineering, cloud infrastructure, and AI.
-            </p>
-
-            {/* Currently Active Banner (Open Layout) */}
-            <div className="pt-6 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                <div>
-                  <span className="font-mono text-[10px] tracking-widest text-text-tertiary uppercase block">
-                    Active Focus
-                  </span>
-                  <span className="font-display font-semibold text-text-primary text-[15px]">
-                    {inProgressPhase?.title || currentlyLearning?.primary || "Phase 00: Development Workflow"} (89%)
-                  </span>
-                </div>
-              </div>
-
-              {currentlyLearning?.next && (
-                <div className="flex items-center gap-2 text-text-tertiary font-mono text-[12px]">
-                  <span>UP NEXT:</span>
-                  <span className="text-text-secondary">{currentlyLearning.next}</span>
-                </div>
-              )}
+      {/* ── Standardized Public Header (Matches About, Journey, Projects, Skills) ── */}
+      <PublicPageHeader
+        eyebrow="02 / Curriculum"
+        title={
+          <>
+            Programming<br />
+            <span className="text-accent">Mastery Roadmap</span>
+          </>
+        }
+        subtitle="A structured curriculum from computer science fundamentals and low-level systems to full-stack engineering, cloud infrastructure, and AI."
+      >
+        {/* Active Focus Banner */}
+        <div className="pt-6 mt-8 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            <div>
+              <span className="font-mono text-[10px] tracking-widest text-text-tertiary uppercase block">
+                Active Focus
+              </span>
+              <span className="font-display font-semibold text-text-primary text-[15px]">
+                {inProgressPhase
+                  ? `${inProgressPhase.title} (${activeProgress}%)`
+                  : currentlyLearning?.primary
+                  ? `${currentlyLearning.primary}`
+                  : "Curriculum Focus"}
+              </span>
             </div>
           </div>
+
+          {currentlyLearning?.next && (
+            <div className="flex items-center gap-2 text-text-tertiary font-mono text-[12px]">
+              <span>UP NEXT:</span>
+              <span className="text-text-secondary">{currentlyLearning.next}</span>
+            </div>
+          )}
         </div>
-      </header>
+      </PublicPageHeader>
 
       {/* ── Filter Bar ────────────────────────────────────── */}
-      <div className="sticky top-[72px] md:top-[80px] z-40 bg-bg/95 backdrop-blur-md border-b border-border py-3">
+      <div className="sticky z-40 bg-bg/95 backdrop-blur-md border-b border-border py-3" style={{ top: "var(--nav-h, 82px)" }}>
         <div className="container">
           <div className="flex items-center gap-2 overflow-x-auto">
             {[
@@ -104,7 +106,7 @@ export function RoadmapClientPage({ initialData, currentlyLearning }: Props) {
             ].map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => setFilterStatus(value as typeof filterStatus)}
+                onClick={() => setFilterStatus(value as any)}
                 className={`flex-shrink-0 text-[11px] font-mono uppercase tracking-widest px-3 py-1.5 rounded-md transition-colors ${
                   filterStatus === value
                     ? "bg-accent text-[#171717] font-semibold shadow-xs"
@@ -119,9 +121,9 @@ export function RoadmapClientPage({ initialData, currentlyLearning }: Props) {
       </div>
 
       {/* ── Curriculum Phases ─────────────────────────────── */}
-      <section className="py-12 md:py-20">
+      <section className="py-16 md:py-24">
         <div className="container">
-          <div className="max-w-4xl space-y-6">
+          <div className="max-w-4xl space-y-8 md:space-y-12">
             {filteredPhases.map((phase, idx) => {
               const phaseDomains = domains.filter(
                 (d) => (typeof d.phase === "string" ? d.phase : (d.phase as RoadmapPhase)._id) === phase._id
@@ -187,7 +189,7 @@ function CurriculumPhaseCard({
           </span>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 flex-wrap mb-1">
+            <div className="flex items-center gap-3 flex-wrap mb-2">
               <h2 className="font-display font-bold text-xl sm:text-2xl text-text-primary tracking-tight">
                 {phase.title}
               </h2>
@@ -197,18 +199,18 @@ function CurriculumPhaseCard({
             </div>
 
             {phase.subtitle && (
-              <p className="text-[14px] text-text-secondary leading-relaxed mt-1 line-clamp-2 font-body">
+              <p className="text-[14.5px] text-text-secondary leading-relaxed mt-2 mb-2 line-clamp-2 font-body">
                 {phase.subtitle}
               </p>
             )}
 
             {/* Active Progress Bar */}
             {phase.progress > 0 && (
-              <div className="mt-4 max-w-md">
-                <div className="w-full h-1 bg-border-muted rounded-full overflow-hidden">
+              <div className="mt-4 pt-1 max-w-md">
+                <div className="w-full h-1.5 bg-border-muted rounded-full overflow-hidden">
                   <div className="h-full bg-accent rounded-full" style={{ width: `${phase.progress}%` }} />
                 </div>
-                <span className="font-mono text-[10px] text-accent mt-1.5 block">
+                <span className="font-mono text-[10.5px] text-accent mt-2 block">
                   {phase.progress}% Complete
                 </span>
               </div>
@@ -218,7 +220,7 @@ function CurriculumPhaseCard({
 
         <ChevronDown
           size={18}
-          className={`text-text-tertiary transition-transform duration-200 shrink-0 mt-1 ${expanded ? "rotate-180 text-text-primary" : ""}`}
+          className={`text-text-tertiary transition-transform duration-200 shrink-0 mt-1.5 ${expanded ? "rotate-180 text-text-primary" : ""}`}
         />
       </button>
 
@@ -230,36 +232,36 @@ function CurriculumPhaseCard({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="border-t border-border px-6 sm:px-8 py-6 bg-bg-alt"
+            className="border-t border-border px-6 sm:px-8 py-7 bg-bg-alt"
           >
             {domains.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-7">
                 {domains.map((domain) => {
                   const domainTopics = topics.filter(
                     (t) => (typeof t.domain === "string" ? t.domain : (t.domain as RoadmapDomain)._id) === domain._id
                   );
                   return (
-                    <div key={domain._id} className="border-b border-border/50 pb-5 last:border-b-0 last:pb-0">
-                      <div className="flex items-center justify-between gap-4 mb-2">
+                    <div key={domain._id} className="border-b border-border/50 pb-6 last:border-b-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-4 mb-2.5">
                         <h4 className="font-mono text-xs uppercase tracking-widest text-text-primary font-semibold">
                           {domain.title}
                         </h4>
                         {domain.status === "in-progress" && (
-                          <span className="text-[10px] font-mono text-accent uppercase tracking-wider">
+                          <span className="text-[10.5px] font-mono text-accent uppercase tracking-wider">
                             IN PROGRESS ({domain.progress}%)
                           </span>
                         )}
                       </div>
                       {domain.description && (
-                        <p className="text-[13.5px] text-text-secondary mb-3 leading-relaxed">
+                        <p className="text-[14px] text-text-secondary mb-4 leading-relaxed">
                           {domain.description}
                         </p>
                       )}
                       {domainTopics.length > 0 && (
-                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5 mt-3 pt-2 border-t border-border/40">
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3.5 mt-4 pt-3 border-t border-border/40">
                           {domainTopics.map((topic, topicIdx) => (
-                            <li key={topic._id} className="flex items-baseline gap-2.5 text-[13.5px] text-text-secondary">
-                              <span className="text-text-tertiary font-mono text-[11px] tabular-nums">
+                            <li key={topic._id} className="py-1 flex items-baseline gap-3 text-[14px] text-text-secondary">
+                              <span className="text-text-tertiary font-mono text-[11px] tabular-nums shrink-0">
                                 {String(topicIdx + 1).padStart(2, "0")}
                               </span>
                               <span className="font-medium text-text-primary/90">{topic.title}</span>

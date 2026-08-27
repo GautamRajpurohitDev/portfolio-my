@@ -27,7 +27,7 @@ export function JourneyPreviewSection({ journey = [], hideHeader = false }: Jour
 
   return (
     <section
-      className={hideHeader ? "py-12 md:py-20 bg-bg" : "section border-t border-border bg-bg"}
+      className={hideHeader ? "py-16 sm:py-20 md:py-24 bg-bg" : "section border-t border-border bg-bg"}
       id="journey"
       aria-labelledby="journey-heading"
     >
@@ -64,14 +64,14 @@ export function JourneyPreviewSection({ journey = [], hideHeader = false }: Jour
           <div className="divide-y divide-border">
             {entries.map((entry, idx) => (
               <SlideUp key={entry._id} delay={0.05 * idx}>
-                <div className="py-8 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-12 items-baseline group">
+                <div className="py-9 sm:py-11 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-12 items-baseline group">
                   {/* Date Column */}
                   <div className="md:col-span-3">
                     <span className="font-mono text-[12px] uppercase tracking-widest text-text-tertiary block">
                       {formatDate(entry.date, "mono")}
                     </span>
                     {entry.topic && (
-                      <span className="font-mono text-[11px] text-accent mt-1 block">
+                      <span className="font-mono text-[11px] text-accent mt-1.5 block">
                         {entry.topic}
                       </span>
                     )}
@@ -79,7 +79,7 @@ export function JourneyPreviewSection({ journey = [], hideHeader = false }: Jour
 
                   {/* Content Column */}
                   <div className="md:col-span-9">
-                    <h3 className="font-display font-bold text-xl sm:text-2xl text-text-primary group-hover:text-accent transition-colors mb-2">
+                    <h3 className="font-display font-bold text-xl sm:text-2xl text-text-primary group-hover:text-accent transition-colors mb-2.5 sm:mb-3">
                       <Link href={`/journey/${entry._id}`}>
                         {entry.title}
                       </Link>

@@ -5,6 +5,7 @@ import { Milestone } from "../models/Milestone";
 import { Update } from "../models/Update";
 import { Settings } from "../models/Settings";
 import { Revision } from "../models/Revision";
+import { RoadmapPhase } from "../models/RoadmapPhase";
 
 // ── SKILLS ────────────────────────────────────────────────────
 
@@ -186,6 +187,95 @@ async function getOrCreate() {
   return settings;
 }
 
+/** Helper: dynamically resolve canonical Skill & RoadmapPhase for currentlyLearning */
+async function resolveCurrentlyLearning(cl: any) {
+  if (!cl) cl = {};
+
+  let skill: any = null;
+  let phase: any = null;
+  let nextPhase: any = null;
+
+  // 1. Resolve Skill
+  if (cl.currentLearningSkillId) {
+    try {
+      skill = await Skill.findById(cl.currentLearningSkillId).select("-__v");
+    } catch { /* ignore invalid id */ }
+  }
+  if (!skill) {
+    // Graceful initial fallback / link to Git & GitHub
+    skill = await Skill.findOne({ name: { $regex: /git/i } }).select("-__v");
+  }
+
+  // 2. Resolve Phase
+  if (cl.currentLearningPhaseId) {
+    try {
+      phase = await RoadmapPhase.findById(cl.currentLearningPhaseId).select("-__v");
+    } catch { /* ignore invalid id */ }
+  }
+  if (!phase) {
+    // Graceful initial fallback to Phase 00 (Development Workflow)
+    phase = await RoadmapPhase.findOne({ number: 0 }).select("-__v");
+    if (!phase) {
+      phase = await RoadmapPhase.findOne({}).sort({ order: 1, number: 1 }).select("-__v");
+    }
+  }
+
+  // 3. Resolve Next Phase
+  if (cl.nextPhaseId) {
+    try {
+      nextPhase = await RoadmapPhase.findById(cl.nextPhaseId).select("-__v");
+    } catch { /* ignore invalid id */ }
+  }
+  if (!nextPhase && phase) {
+    nextPhase = await RoadmapPhase.findOne({
+      order: { $gt: phase.order },
+      published: true,
+    }).sort({ order: 1, number: 1 }).select("-__v");
+  }
+
+  // Derive final values
+  const primary = cl.displayTitleOverride?.trim()
+    || skill?.name
+    || phase?.title
+    || cl.primary
+    || "Git & GitHub";
+
+  const primaryDescription = cl.displayDescriptionOverride?.trim()
+    || skill?.description
+    || phase?.description
+    || phase?.subtitle
+    || cl.primaryDescription
+    || "Learning version control from first principles.";
+
+  const status = skill?.status || phase?.status || "in-progress";
+
+  const rawProgress = skill?.progress !== undefined
+    ? Number(skill.progress)
+    : phase?.progress !== undefined
+    ? Number(phase.progress)
+    : Number(cl.progress ?? 100);
+
+  const progress = Math.min(100, Math.max(0, isNaN(rawProgress) ? 100 : rawProgress));
+
+  const next = nextPhase?.title || cl.next || "C Programming";
+
+  return {
+    currentLearningSkillId:     cl.currentLearningSkillId || (skill ? String(skill._id) : null),
+    currentLearningPhaseId:     cl.currentLearningPhaseId || (phase ? String(phase._id) : null),
+    nextPhaseId:                cl.nextPhaseId || (nextPhase ? String(nextPhase._id) : null),
+    primary,
+    primaryDescription,
+    status,
+    progress,
+    next,
+    phaseTitle:                 phase?.title || undefined,
+    phaseNumber:                phase?.number !== undefined ? phase.number : undefined,
+    roadmap:                    cl.roadmap || [],
+    displayTitleOverride:       cl.displayTitleOverride || "",
+    displayDescriptionOverride: cl.displayDescriptionOverride || "",
+  };
+}
+
 /**
  * GET /api/settings  (public)
  * Returns only public-safe fields. Strips admin-only data (email in identity,
@@ -200,6 +290,8 @@ export async function getSettings(_req: Request, res: Response): Promise<void> {
       res.json({ success: true, data: null, unpublished: true });
       return;
     }
+
+    const resolvedCL = await resolveCurrentlyLearning(s.currentlyLearning);
 
     // Public-safe projection — omit private email in identity (expose via socials.email.url instead)
     const pub = {
@@ -218,7 +310,7 @@ export async function getSettings(_req: Request, res: Response): Promise<void> {
       about:             s.about,
       appearance:        s.appearance,
       hero:              s.hero,
-      currentlyLearning: s.currentlyLearning,
+      currentlyLearning: resolvedCL,
       socials:           s.socials,
       navigation:        s.navigation?.filter((n: any) => n.enabled).sort((a: any, b: any) => a.order - b.order),
       footer:            s.footer,
@@ -236,7 +328,8 @@ export async function getSettings(_req: Request, res: Response): Promise<void> {
     };
 
     res.json({ success: true, data: pub });
-  } catch {
+  } catch (err: any) {
+    console.error("[contentController:getSettings]", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 }
@@ -254,13 +347,18 @@ export async function getAdminSettings(req: Request, res: Response): Promise<voi
     if (req.query.draft === "true") {
       const draft = await Revision.findOne({ entityId: "settings", entityType: "Settings", status: "draft" });
       if (draft && draft.snapshot) {
-        res.json({ success: true, data: { ...s.toObject(), ...draft.snapshot, _isDraft: true } });
+        const draftData = { ...s.toObject(), ...draft.snapshot, _isDraft: true };
+        draftData.currentlyLearning = await resolveCurrentlyLearning(draftData.currentlyLearning);
+        res.json({ success: true, data: draftData });
         return;
       }
     }
 
-    res.json({ success: true, data: s });
-  } catch {
+    const sObj = s.toObject();
+    sObj.currentlyLearning = await resolveCurrentlyLearning(sObj.currentlyLearning);
+    res.json({ success: true, data: sObj });
+  } catch (err: any) {
+    console.error("[contentController:getAdminSettings]", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 }

@@ -9,8 +9,10 @@ export interface CurrentlyLearningConfig {
   primary: string;
   description: string;
   progress: number;
+  status?: string;
   next: string;
   roadmap: string[];
+  phaseLabel?: string;
 }
 
 interface CurrentlyLearningSectionProps {
@@ -23,6 +25,23 @@ export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionPro
   const rawProgress = Number(config.progress ?? 0);
   const progress = Math.min(100, Math.max(0, isNaN(rawProgress) ? 0 : rawProgress));
   const progressRounded = Math.round(progress);
+  const phaseLabel = config.phaseLabel
+    ? config.phaseLabel.toUpperCase()
+    : `CURRENT FOCUS: ${config.primary?.toUpperCase() || "ACTIVE"}`;
+
+  const isCompleted = config.status === "completed" || progress >= 100;
+  const statusLabel = isCompleted
+    ? "FOUNDATION COMPLETED"
+    : config.status === "practicing"
+    ? "PRACTICING & REFINING"
+    : config.status === "review"
+    ? "IN REVIEW"
+    : config.status === "not-started"
+    ? "PLANNED FOCUS"
+    : "FOUNDATION IN PROGRESS";
+
+  const statusDotColor = isCompleted ? "bg-emerald-400" : "bg-accent";
+  const statusTextColor = isCompleted ? "text-emerald-400" : "text-accent";
 
   return (
     <section
@@ -44,9 +63,9 @@ export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionPro
             <div>
               <SlideUp delay={0.04}>
                 <div className="flex items-center gap-2.5 mb-4">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                  <span className="font-mono text-xs uppercase tracking-widest text-accent">
-                    FOUNDATION IN PROGRESS
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor} animate-pulse`} />
+                  <span className={`font-mono text-xs uppercase tracking-widest ${statusTextColor}`}>
+                    {statusLabel}
                   </span>
                 </div>
               </SlideUp>
@@ -84,7 +103,7 @@ export function CurrentlyLearningSection({ config }: CurrentlyLearningSectionPro
                   <ProgressFill progress={progress} />
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-mono text-text-tertiary">
-                  <span>PHASE 00: DEVELOPMENT WORKFLOW</span>
+                  <span>{phaseLabel}</span>
                   <span>{progressRounded}% VERIFIED MASTERY</span>
                 </div>
               </SlideUp>

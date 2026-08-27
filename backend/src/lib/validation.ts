@@ -242,10 +242,15 @@ export const SettingsSchema = z.object({
 
   // ── Currently Learning ────────────────────────────────────
   currentlyLearning: z.object({
-    primary:            z.string().min(1),
-    primaryDescription: z.string().optional().default(""),
-    next:               z.string().optional().default(""),
-    roadmap:            z.array(z.string()).optional().default([]),
+    currentLearningSkillId:     z.string().nullable().optional(),
+    currentLearningPhaseId:     z.string().nullable().optional(),
+    nextPhaseId:                z.string().nullable().optional(),
+    primary:                    z.string().optional().default("Git & GitHub"),
+    primaryDescription:         z.string().optional().default(""),
+    next:                       z.string().optional().default(""),
+    roadmap:                    z.array(z.string()).optional().default([]),
+    displayTitleOverride:       z.string().optional().default(""),
+    displayDescriptionOverride: z.string().optional().default(""),
   }).optional(),
 
   // ── Socials ───────────────────────────────────────────────

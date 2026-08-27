@@ -83,9 +83,9 @@ export default function AdminActivityPage() {
         cell: ({ row }) => {
           const date = new Date(row.original.timestamp);
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 whitespace-nowrap">
               <Clock size={13} className="text-text-muted shrink-0" />
-              <div className="space-y-0.5">
+              <div>
                 <p className="font-mono text-xs text-text-primary">
                   {date.toLocaleDateString("en-US", {
                     month: "short",
@@ -104,10 +104,9 @@ export default function AdminActivityPage() {
         header: "Event",
         cell: ({ row }) => {
           const item = row.original;
-          const isAuth = item.resourceType === "Auth";
           return (
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-white/[0.04] border border-border/60 text-primary uppercase">
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-white/[0.04] border border-border/60 text-primary uppercase shrink-0">
                 {item.event}
               </span>
             </div>
@@ -138,13 +137,13 @@ export default function AdminActivityPage() {
           const isSuccess = row.original.result === "SUCCESS";
           return (
             <span
-              className={`inline-flex items-center gap-1 font-mono text-[10.5px] font-bold px-2 py-0.5 rounded-full ${
+              className={`inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold px-2.5 py-0.5 rounded-full shrink-0 whitespace-nowrap ${
                 isSuccess
                   ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                   : "bg-red-500/10 text-red-400 border border-red-500/20"
               }`}
             >
-              {isSuccess ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+              {isSuccess ? <CheckCircle2 size={11} className="shrink-0" /> : <XCircle size={11} className="shrink-0" />}
               <span>{row.original.result}</span>
             </span>
           );
@@ -155,8 +154,8 @@ export default function AdminActivityPage() {
         accessorKey: "actor",
         header: "Actor",
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 text-text-secondary font-mono text-xs">
-            <User size={12} className="text-text-muted" />
+          <div className="flex items-center gap-1.5 text-text-secondary font-mono text-xs whitespace-nowrap">
+            <User size={12} className="text-text-muted shrink-0" />
             <span>{row.original.actor || "Admin"}</span>
           </div>
         ),
@@ -204,57 +203,6 @@ export default function AdminActivityPage() {
         }
       />
 
-      {/* ── Filter Toolbar ─────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#101010] border border-border/70">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by event, title, or type…"
-            className="w-full h-9 bg-white/[0.02] border border-border/70 rounded-lg pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
-          />
-        </div>
-
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono">
-          {[
-            { id: "all", label: "All" },
-            { id: "content", label: "Content" },
-            { id: "media", label: "Media" },
-            { id: "auth", label: "Auth" },
-            { id: "settings", label: "Settings" },
-            { id: "security", label: "Security" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setFilterType(tab.id)}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                filterType === tab.id
-                  ? "bg-primary text-[#090909] font-bold"
-                  : "bg-white/[0.02] border border-border/50 text-text-muted hover:text-text-primary"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Result Filter */}
-        <select
-          value={filterResult}
-          onChange={(e) => setFilterResult(e.target.value)}
-          className="h-9 bg-white/[0.02] border border-border/70 rounded-lg px-2.5 text-xs font-mono text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer shrink-0"
-        >
-          <option value="all">All Results</option>
-          <option value="success">Success Only</option>
-          <option value="failed">Failed Only</option>
-        </select>
-      </div>
-
       {/* ── Table Content ──────────────────────────────────────── */}
       {isLoading ? (
         <div className="p-12 text-center text-text-muted font-mono text-xs">
@@ -269,7 +217,82 @@ export default function AdminActivityPage() {
         <AdminDataTable
           columns={columns}
           data={logs}
-          searchPlaceholder="Filter listed events…"
+          searchPlaceholder="Search by event, resource, actor, or type…"
+          filterControls={
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "content", label: "Content" },
+                  { id: "media", label: "Media" },
+                  { id: "auth", label: "Auth" },
+                  { id: "settings", label: "Settings" },
+                  { id: "security", label: "Security" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setFilterType(tab.id)}
+                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
+                      filterType === tab.id
+                        ? "bg-primary text-[#090909] font-bold"
+                        : "bg-white/[0.02] border border-border/50 text-text-muted hover:text-text-primary"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Result Filter */}
+              <select
+                value={filterResult}
+                onChange={(e) => setFilterResult(e.target.value)}
+                className="h-9 bg-white/[0.02] border border-white/[0.08] rounded-lg pl-3 pr-7 text-xs font-mono text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer shrink-0"
+              >
+                <option value="all">All Results</option>
+                <option value="success">Success Only</option>
+                <option value="failed">Failed Only</option>
+              </select>
+            </div>
+          }
+          renderMobileCard={(item) => (
+            <div
+              onClick={() => setSelectedLog(item)}
+              className="space-y-2.5 text-xs font-body cursor-pointer select-none"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-white/[0.04] border border-border/60 text-primary uppercase shrink-0">
+                  {item.event}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
+                    item.result === "SUCCESS"
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-red-500/10 text-red-400 border border-red-500/20"
+                  }`}
+                >
+                  {item.result === "SUCCESS" ? (
+                    <CheckCircle2 size={11} className="shrink-0" />
+                  ) : (
+                    <XCircle size={11} className="shrink-0" />
+                  )}
+                  <span>{item.result}</span>
+                </span>
+              </div>
+              <p className="font-mono text-xs font-semibold text-text-primary truncate">
+                {item.resourceTitle || item.resourceType}
+              </p>
+              <div className="flex items-center justify-between text-[11px] font-mono text-text-muted pt-1 border-t border-white/[0.04]">
+                <span>{new Date(item.timestamp).toLocaleString()}</span>
+                <div className="flex items-center gap-1 text-text-secondary">
+                  <User size={11} className="shrink-0" />
+                  <span>{item.actor || "Admin"}</span>
+                </div>
+              </div>
+            </div>
+          )}
         />
       )}
 

@@ -143,10 +143,10 @@ export function HeroSection({ config: rawConfig }: HeroSectionProps) {
           {/* ── LAYER 2: METADATA (2 intentional rows on mobile) ── */}
           <motion.div
             {...makeMotion(heroSequence.meta)}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-y-2.5 gap-x-6 mb-5 sm:mb-6"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-y-3 gap-x-6 mb-6 sm:mb-8"
           >
             {/* Row 1: Profile attributes */}
-            <div className="flex flex-wrap items-center gap-x-3.5 sm:gap-x-6 gap-y-1 font-mono text-[10.5px] sm:text-[11px] tracking-[0.15em] uppercase text-text-secondary">
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-1.5 font-mono text-[10.5px] sm:text-[11px] tracking-[0.15em] uppercase text-text-secondary">
               {profileItems.map(({ icon, text }, idx) => {
                 const Icon = resolveIcon(icon);
                 return (
@@ -169,7 +169,7 @@ export function HeroSection({ config: rawConfig }: HeroSectionProps) {
 
           {/* ── LAYER 3: HEADLINE (Solid tightly stacked block) ─── */}
           <h1
-            className="font-display font-bold leading-[0.86] tracking-tighter mb-7 sm:mb-8 w-full max-w-none lg:max-w-[880px]"
+            className="font-display font-bold leading-[0.86] tracking-tighter mb-8 sm:mb-9 w-full max-w-none lg:max-w-[880px]"
             style={{ fontSize: "clamp(48px, 12.5vw, 124px)" }}
             aria-label={heroLines.join(" ")}
           >
@@ -206,7 +206,7 @@ export function HeroSection({ config: rawConfig }: HeroSectionProps) {
             {/* ── LAYER 4: SCROLL CUE (Discovery cue) ─────────────── */}
             <motion.div
               {...makeMotion(heroSequence.scroll)}
-              className="mt-5 sm:mt-6 flex items-center gap-2"
+              className="mt-7 sm:mt-9 flex items-center gap-2"
               aria-hidden
             >
               <motion.div

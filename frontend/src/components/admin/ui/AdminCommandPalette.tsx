@@ -29,14 +29,21 @@ import {
   Clock,
   Globe,
   Upload,
+  ShieldCheck,
+  Activity,
+  Edit2,
+  FileBox,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { projectsApi, skillsApi, journeyApi, updatesApi, mediaApi } from "@/lib/api";
 
 export interface CommandItem {
   id: string;
   label: string;
-  category: "NAVIGATION" | "CREATE" | "PORTFOLIO" | "SYSTEM";
+  category: "RECENT" | "NAVIGATION" | "CREATE" | "PORTFOLIO" | "CONTENT" | "SYSTEM";
   icon: React.ElementType;
+  sublabel?: string;
+  badge?: string;
   keywords?: string[];
   href?: string;
   externalHref?: string;
@@ -44,7 +51,7 @@ export interface CommandItem {
   shortcut?: string;
 }
 
-const ALL_COMMANDS: CommandItem[] = [
+const STATIC_COMMANDS: CommandItem[] = [
   // ── Navigation ───────────────────────────────────────────────
   {
     id: "nav-dashboard",
@@ -84,7 +91,7 @@ const ALL_COMMANDS: CommandItem[] = [
     category: "NAVIGATION",
     icon: Layers,
     href: "/admin/skills",
-    keywords: ["tech", "languages", "mastery", "frameworks"],
+    keywords: ["tech", "languages", "mastery", "frameworks", "git"],
   },
   {
     id: "nav-certificates",
@@ -151,6 +158,22 @@ const ALL_COMMANDS: CommandItem[] = [
     keywords: ["layout", "reorder", "visibility", "structure"],
   },
   {
+    id: "nav-activity",
+    label: "Activity & Audit Stream",
+    category: "NAVIGATION",
+    icon: Activity,
+    href: "/admin/activity",
+    keywords: ["audit", "logs", "security events", "history"],
+  },
+  {
+    id: "nav-security",
+    label: "Security Center",
+    category: "NAVIGATION",
+    icon: ShieldCheck,
+    href: "/admin/security",
+    keywords: ["auth", "posture", "tokens", "headers", "jwt"],
+  },
+  {
     id: "nav-settings",
     label: "Global Settings",
     category: "NAVIGATION",
@@ -191,22 +214,6 @@ const ALL_COMMANDS: CommandItem[] = [
     icon: Plus,
     href: "/admin/skills/new",
     keywords: ["add skill", "new technology"],
-  },
-  {
-    id: "create-certificate",
-    label: "New Certificate",
-    category: "CREATE",
-    icon: Plus,
-    href: "/admin/certificates/new",
-    keywords: ["add certificate", "upload credential"],
-  },
-  {
-    id: "create-milestone",
-    label: "New Milestone",
-    category: "CREATE",
-    icon: Plus,
-    href: "/admin/milestones/new",
-    keywords: ["add milestone", "new goal"],
   },
   {
     id: "create-media",
@@ -266,34 +273,6 @@ const ALL_COMMANDS: CommandItem[] = [
     externalHref: "/roadmap",
     keywords: ["public roadmap"],
   },
-  {
-    id: "port-contact",
-    label: "View Public Contact ↗",
-    category: "PORTFOLIO",
-    icon: ExternalLink,
-    externalHref: "/contact",
-    keywords: ["public contact"],
-  },
-
-  // ── System ───────────────────────────────────────────────────
-  {
-    id: "sys-refresh",
-    label: "Refresh Workspace Data",
-    category: "SYSTEM",
-    icon: RefreshCw,
-    action: () => {
-      window.location.reload();
-    },
-    keywords: ["reload", "re-fetch", "sync"],
-  },
-  {
-    id: "sys-settings",
-    label: "Open System Settings",
-    category: "SYSTEM",
-    icon: Settings,
-    href: "/admin/settings",
-    keywords: ["configuration", "preferences"],
-  },
 ];
 
 const RECENT_KEY = "admin_recent_commands";
@@ -325,6 +304,9 @@ export function AdminCommandPalette({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [contentResults, setContentResults] = useState<CommandItem[]>([]);
+  const [isSearchingContent, setIsSearchingContent] = useState(false);
+
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -342,7 +324,7 @@ export function AdminCommandPalette({
   const saveRecent = useCallback((id: string) => {
     setRecentIds((prev) => {
       const filtered = prev.filter((item) => item !== id);
-      const next = [id, ...filtered].slice(0, 4);
+      const next = [id, ...filtered].slice(0, 5);
       try {
         localStorage.setItem(RECENT_KEY, JSON.stringify(next));
       } catch {}
@@ -367,17 +349,133 @@ export function AdminCommandPalette({
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
+      setContentResults([]);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
+
+  // Live content search across Projects, Skills, Journey, Updates
+  useEffect(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (trimmed.length < 2) {
+      setContentResults([]);
+      setIsSearchingContent(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsSearchingContent(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const [projRes, skillsRes, journeyRes, updatesRes] = await Promise.allSettled([
+          projectsApi.getAllAdmin(),
+          skillsApi.getAllAdmin(),
+          journeyApi.getAllAdmin(),
+          updatesApi.getAllAdmin(),
+        ]);
+
+        if (!isMounted) return;
+
+        const results: CommandItem[] = [];
+
+        // Projects
+        if (projRes.status === "fulfilled") {
+          const projs = projRes.value.data.data || [];
+          projs
+            .filter((p: any) => p.title?.toLowerCase().includes(trimmed) || p.category?.toLowerCase().includes(trimmed))
+            .slice(0, 4)
+            .forEach((p: any) => {
+              results.push({
+                id: `content-proj-${p._id}`,
+                label: p.title,
+                sublabel: `${p.category || "Project"} · ${p.published ? "Published" : "Draft"}`,
+                badge: "PROJECT",
+                category: "CONTENT",
+                icon: FolderKanban,
+                href: `/admin/projects/${p._id}/edit`,
+              });
+            });
+        }
+
+        // Skills
+        if (skillsRes.status === "fulfilled") {
+          const skills = skillsRes.value.data.data || [];
+          skills
+            .filter((s: any) => s.name?.toLowerCase().includes(trimmed) || s.category?.toLowerCase().includes(trimmed))
+            .slice(0, 4)
+            .forEach((s: any) => {
+              results.push({
+                id: `content-skill-${s._id}`,
+                label: s.name,
+                sublabel: `${s.category} · ${s.mastery || 0}% Mastery`,
+                badge: "SKILL",
+                category: "CONTENT",
+                icon: Layers,
+                href: `/admin/skills/${s._id}/edit`,
+              });
+            });
+        }
+
+        // Journey
+        if (journeyRes.status === "fulfilled") {
+          const journeys = journeyRes.value.data.data || [];
+          journeys
+            .filter((j: any) => j.title?.toLowerCase().includes(trimmed) || j.summary?.toLowerCase().includes(trimmed))
+            .slice(0, 3)
+            .forEach((j: any) => {
+              results.push({
+                id: `content-journey-${j._id}`,
+                label: j.title,
+                sublabel: `Journey Entry · Phase ${j.phase || "00"}`,
+                badge: "JOURNEY",
+                category: "CONTENT",
+                icon: BookOpen,
+                href: `/admin/journey/${j._id}/edit`,
+              });
+            });
+        }
+
+        // Updates
+        if (updatesRes.status === "fulfilled") {
+          const updates = updatesRes.value.data.data || [];
+          updates
+            .filter((u: any) => u.title?.toLowerCase().includes(trimmed) || u.tags?.some((t: string) => t.toLowerCase().includes(trimmed)))
+            .slice(0, 3)
+            .forEach((u: any) => {
+              results.push({
+                id: `content-update-${u._id}`,
+                label: u.title,
+                sublabel: `Update Log · ${u.published ? "Live" : "Draft"}`,
+                badge: "UPDATE",
+                category: "CONTENT",
+                icon: Rss,
+                href: `/admin/updates/${u._id}/edit`,
+              });
+            });
+        }
+
+        setContentResults(results);
+      } catch {
+        // Safe catch
+      } finally {
+        if (isMounted) setIsSearchingContent(false);
+      }
+    }, 180);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [query]);
 
   // Filtered command items
   const filteredCommands = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
-      return ALL_COMMANDS;
+      return STATIC_COMMANDS;
     }
-    return ALL_COMMANDS.filter((cmd) => {
+    return STATIC_COMMANDS.filter((cmd) => {
       if (cmd.label.toLowerCase().includes(trimmed)) return true;
       if (cmd.category.toLowerCase().includes(trimmed)) return true;
       if (cmd.keywords?.some((k) => k.toLowerCase().includes(trimmed))) return true;
@@ -392,15 +490,20 @@ export function AdminCommandPalette({
     // Add recent group if no query and recent items exist
     if (!query.trim() && recentIds.length > 0) {
       const recents = recentIds
-        .map((id) => ALL_COMMANDS.find((c) => c.id === id))
+        .map((id) => STATIC_COMMANDS.find((c) => c.id === id))
         .filter(Boolean) as CommandItem[];
       if (recents.length > 0) {
         map.set("RECENT", recents);
       }
     }
 
+    // Add content search matches first if query is active
+    if (contentResults.length > 0) {
+      map.set("PORTFOLIO CONTENT", contentResults);
+    }
+
     // Populate regular categories
-    const categories: ("NAVIGATION" | "CREATE" | "PORTFOLIO" | "SYSTEM")[] = [
+    const categories: ("CREATE" | "NAVIGATION" | "PORTFOLIO" | "SYSTEM")[] = [
       "CREATE",
       "NAVIGATION",
       "PORTFOLIO",
@@ -415,7 +518,7 @@ export function AdminCommandPalette({
     });
 
     return map;
-  }, [filteredCommands, query, recentIds]);
+  }, [filteredCommands, contentResults, query, recentIds]);
 
   // Flattened array for index calculation
   const flattenedItems = useMemo(() => {
@@ -429,7 +532,9 @@ export function AdminCommandPalette({
   // Execute selected command
   const executeCommand = useCallback(
     (cmd: CommandItem) => {
-      saveRecent(cmd.id);
+      if (cmd.category !== "CONTENT") {
+        saveRecent(cmd.id);
+      }
       setOpen(false);
 
       if (cmd.action) {
@@ -450,181 +555,130 @@ export function AdminCommandPalette({
       setSelectedIndex((prev) => (prev + 1) % Math.max(flattenedItems.length, 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev - 1 < 0 ? Math.max(flattenedItems.length - 1, 0) : prev - 1
-      );
+      setSelectedIndex((prev) => (prev - 1 + flattenedItems.length) % Math.max(flattenedItems.length, 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const current = flattenedItems[selectedIndex];
-      if (current) {
-        executeCommand(current);
+      if (flattenedItems[selectedIndex]) {
+        executeCommand(flattenedItems[selectedIndex]);
       }
     } else if (e.key === "Escape") {
-      e.preventDefault();
       setOpen(false);
     }
   };
 
-  // Scroll active item into view
-  useEffect(() => {
-    if (listRef.current) {
-      const activeEl = listRef.current.querySelector(
-        `[data-index="${selectedIndex}"]`
-      );
-      if (activeEl) {
-        activeEl.scrollIntoView({ block: "nearest" });
-      }
-    }
-  }, [selectedIndex]);
-
   return (
     <Dialog.Root open={isOpen} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <AnimatePresence>
-          {isOpen && (
-            <>
-              {/* Backdrop */}
-              <Dialog.Overlay asChild>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[200]"
-                />
-              </Dialog.Overlay>
+        <Dialog.Overlay className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in" />
+        <Dialog.Content
+          className="fixed left-1/2 top-[18%] -translate-x-1/2 w-full max-w-xl bg-[#0c0c0c] border border-white/[0.12] rounded-2xl shadow-2xl z-50 overflow-hidden font-body text-xs focus:outline-none"
+          onKeyDown={handleKeyDown}
+        >
+          <Dialog.Title className="sr-only">Admin Command Console</Dialog.Title>
+          <Dialog.Description className="sr-only">
+            Search portfolio content, jump to collections, or execute admin actions.
+          </Dialog.Description>
 
-              {/* Command Dialog */}
-              <Dialog.Content asChild>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: -12 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: -12 }}
-                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                  className="fixed top-[15%] left-1/2 -translate-x-1/2 z-[201] w-full max-w-xl px-4 outline-none"
-                  onKeyDown={handleKeyDown}
-                >
-                  <div className="bg-[#101010] border border-border/80 rounded-2xl shadow-2xl overflow-hidden font-body flex flex-col max-h-[70vh]">
-                    {/* Search Input Bar */}
-                    <div className="flex items-center gap-3 px-4 h-13 border-b border-border/60 bg-[#141414]">
-                      <Search size={16} className="text-text-muted shrink-0" />
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        placeholder="Search commands, collections, actions…"
-                        value={query}
-                        onChange={(e) => {
-                          setQuery(e.target.value);
-                          setSelectedIndex(0);
-                        }}
-                        className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none font-body"
-                        aria-label="Command search"
-                      />
-                      <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-white/[0.06] border border-border/60 text-[10px] font-mono text-text-muted select-none">
-                        ESC
-                      </kbd>
-                    </div>
+          {/* Search Header Input */}
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.08] bg-white/[0.02]">
+            <Search size={15} className="text-primary shrink-0" />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Type to search content, projects, skills, or commands… (e.g. 'Git', 'Inflow')"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(0);
+              }}
+              className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+            />
+            {isSearchingContent && (
+              <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+            )}
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] text-[10px] font-mono text-text-muted">
+              ESC
+            </kbd>
+          </div>
 
-                    {/* Results List */}
-                    <div
-                      ref={listRef}
-                      className="flex-1 overflow-y-auto p-2 space-y-3 max-h-[50vh] scrollbar-thin"
-                    >
-                      {flattenedItems.length === 0 ? (
-                        <div className="py-12 text-center text-text-muted space-y-1">
-                          <p className="text-xs font-mono uppercase tracking-wider">
-                            No commands found
-                          </p>
-                          <p className="text-[11px] text-text-muted">
-                            No matching actions for "{query}"
-                          </p>
-                        </div>
-                      ) : (
-                        Array.from(groups.entries()).map(([groupLabel, items]) => (
-                          <div key={groupLabel} className="space-y-0.5">
-                            <p className="px-3 py-1.5 text-[9.5px] font-mono text-text-muted tracking-widest uppercase font-semibold select-none flex items-center gap-1.5">
-                              {groupLabel === "RECENT" && <Clock size={10} />}
-                              <span>{groupLabel}</span>
-                            </p>
-                            <div className="space-y-0.5">
-                              {items.map((cmd) => {
-                                const currentIndex = flattenedItems.indexOf(cmd);
-                                const isSelected = selectedIndex === currentIndex;
-                                const Icon = cmd.icon;
-
-                                return (
-                                  <button
-                                    key={cmd.id}
-                                    data-index={currentIndex}
-                                    type="button"
-                                    onClick={() => executeCommand(cmd)}
-                                    onMouseEnter={() => setSelectedIndex(currentIndex)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all duration-100 cursor-pointer ${
-                                      isSelected
-                                        ? "bg-primary/[0.12] text-text-primary border-l-2 border-primary"
-                                        : "text-text-secondary hover:text-text-primary hover:bg-white/[0.04] border-l-2 border-transparent"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      <div
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
-                                          isSelected
-                                            ? "bg-primary/20 border-primary/40 text-primary"
-                                            : "bg-white/[0.03] border-border/50 text-text-muted"
-                                        }`}
-                                      >
-                                        <Icon size={14} />
-                                      </div>
-                                      <span className="text-xs font-medium truncate">
-                                        {cmd.label}
-                                      </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      {cmd.category === "CREATE" && (
-                                        <span className="text-[9px] font-mono text-primary uppercase tracking-wider bg-primary/10 px-1.5 py-0.5 rounded">
-                                          Create
-                                        </span>
-                                      )}
-                                      {isSelected && (
-                                        <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-mono bg-white/[0.08] text-text-muted">
-                                          ↵ Select
-                                        </kbd>
-                                      )}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* Keyboard Hint Footer */}
-                    <div className="px-4 py-2.5 bg-[#0c0c0c] border-t border-border/50 flex items-center justify-between text-[10.5px] font-mono text-text-muted select-none">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-border/40 text-[9.5px]">↑</kbd>
-                          <kbd className="px-1 py-0.5 rounded bg-white/[0.06] border border-border/40 text-[9.5px]">↓</kbd>
-                          <span>Navigate</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-border/40 text-[9.5px]">↵</kbd>
-                          <span>Open</span>
-                        </span>
-                      </div>
-                      <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-border/40 text-[9.5px]">ESC</kbd>
-                        <span>Close</span>
-                      </span>
-                    </div>
+          {/* List of Results */}
+          <div ref={listRef} className="max-h-[380px] overflow-y-auto p-2 space-y-3">
+            {flattenedItems.length === 0 ? (
+              <div className="py-12 text-center text-text-muted font-mono text-xs">
+                No matching commands or portfolio content found for &quot;{query}&quot;.
+              </div>
+            ) : (
+              Array.from(groups.entries()).map(([groupName, items]) => (
+                <div key={groupName} className="space-y-1">
+                  <div className="px-3 py-1 text-[10px] font-mono font-bold text-text-muted uppercase tracking-wider flex items-center justify-between">
+                    <span>{groupName}</span>
+                    {groupName === "PORTFOLIO CONTENT" && (
+                      <span className="text-[9px] text-primary">LIVE MATCHES</span>
+                    )}
                   </div>
-                </motion.div>
-              </Dialog.Content>
-            </>
-          )}
-        </AnimatePresence>
+                  {items.map((cmd) => {
+                    const globalIdx = flattenedItems.indexOf(cmd);
+                    const isSelected = globalIdx === selectedIndex;
+                    const Icon = cmd.icon;
+
+                    return (
+                      <button
+                        key={cmd.id}
+                        type="button"
+                        onClick={() => executeCommand(cmd)}
+                        onMouseEnter={() => setSelectedIndex(globalIdx)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                          isSelected
+                            ? "bg-primary/[0.12] text-text-primary border border-primary/30"
+                            : "text-text-secondary hover:text-text-primary hover:bg-white/[0.03] border border-transparent"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon
+                            size={14}
+                            className={isSelected ? "text-primary shrink-0" : "text-text-muted shrink-0"}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-xs text-text-primary">
+                              {cmd.label}
+                            </p>
+                            {cmd.sublabel && (
+                              <p className="text-[10px] text-text-muted font-mono truncate">
+                                {cmd.sublabel}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {cmd.badge && (
+                            <span className="px-1.5 py-0.5 rounded bg-white/[0.06] text-[9px] font-mono text-primary border border-white/[0.08]">
+                              {cmd.badge}
+                            </span>
+                          )}
+                          <ChevronRight
+                            size={12}
+                            className={isSelected ? "text-primary" : "text-text-muted opacity-40"}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Footer Shortcuts */}
+          <div className="flex items-center justify-between px-4 py-2 bg-[#080808] border-t border-white/[0.08] text-[10px] font-mono text-text-muted">
+            <div className="flex items-center gap-3">
+              <span>↑↓ Navigate</span>
+              <span>↵ Open / Edit</span>
+              <span>ESC Close</span>
+            </div>
+            <span className="text-text-secondary">Gautam OS Command Console</span>
+          </div>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );

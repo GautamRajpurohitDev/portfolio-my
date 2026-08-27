@@ -54,11 +54,11 @@ export function RoadmapPreviewSection({ phases = [], currentPhase }: RoadmapPrev
         </SlideUp>
 
         {/* Active + Next Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-14">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 sm:gap-14 mb-14 sm:mb-18">
           {/* Active Phase */}
           <SlideUp delay={0.06}>
-            <div className="border-t border-accent/40 pt-4">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="border-t border-accent/40 pt-5">
+              <div className="flex items-center gap-2 mb-2.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                 <span className="font-mono text-[11px] uppercase tracking-widest text-accent font-semibold">
                   CURRENT ACTIVE PHASE
@@ -67,7 +67,7 @@ export function RoadmapPreviewSection({ phases = [], currentPhase }: RoadmapPrev
               <p className="font-display font-bold text-2xl sm:text-3xl text-text-primary tracking-tight mb-4">
                 {currentPhase?.phase?.title || "Phase 00: Development Workflow"}
               </p>
-              <div className="w-full h-1.5 bg-border-muted rounded-full overflow-hidden mb-2">
+              <div className="w-full h-1.5 bg-border-muted rounded-full overflow-hidden mb-2.5">
                 <div className="h-full bg-accent rounded-full" style={{ width: `${progress}%` }} />
               </div>
               <span className="font-mono text-[11px] text-text-tertiary">
@@ -78,14 +78,14 @@ export function RoadmapPreviewSection({ phases = [], currentPhase }: RoadmapPrev
 
           {/* Up Next */}
           <SlideUp delay={0.1}>
-            <div className="border-t border-border pt-4">
-              <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary block mb-2">
+            <div className="border-t border-border pt-5">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary block mb-2.5">
                 UP NEXT ON CURRICULUM
               </span>
-              <p className="font-display font-bold text-2xl sm:text-3xl text-text-secondary tracking-tight mb-2">
+              <p className="font-display font-bold text-2xl sm:text-3xl text-text-secondary tracking-tight mb-2.5">
                 {currentPhase?.upNext || "Phase 01: Problem Solving Foundations"}
               </p>
-              <p className="text-[14px] text-text-tertiary">
+              <p className="text-[14px] text-text-tertiary leading-relaxed">
                 Structured foundations in logic, memory management, and algorithmic thinking.
               </p>
             </div>
@@ -94,18 +94,18 @@ export function RoadmapPreviewSection({ phases = [], currentPhase }: RoadmapPrev
 
         {/* All Phases: Open Editorial Grid (No Decorative Pill Wall) */}
         <SlideUp delay={0.14}>
-          <div className="pt-8 border-t border-border">
+          <div className="pt-10 sm:pt-12 border-t border-border">
             <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary block mb-6">
               Curriculum Sequence ({phases.length} Phases)
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 sm:gap-x-12 gap-y-4 sm:gap-y-5">
               {phases.map((phase) => {
                 const isActive = phase.status === "in-progress";
                 const isCompleted = phase.status === "completed";
                 return (
                   <div
                     key={phase._id}
-                    className="py-2.5 flex items-baseline justify-between gap-3 border-b border-border/50"
+                    className="py-3 flex items-baseline justify-between gap-3 border-b border-border/50"
                   >
                     <div className="flex items-baseline gap-2 min-w-0">
                       <span className={`font-mono text-[11px] tabular-nums ${isActive ? "text-accent font-bold" : "text-text-tertiary"}`}>

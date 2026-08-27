@@ -28,7 +28,11 @@ export default async function PublicLayout({
   return (
     <>
       <Navbar config={config} />
-      <main id="main-content" tabIndex={-1}>
+      {/*
+       * padding-top: var(--nav-h) is the SINGLE canonical offset for the fixed navbar.
+       * All pages use this clearance. Pages add their own breathing room ABOVE the content.
+       */}
+      <main id="main-content" tabIndex={-1} style={{ paddingTop: "var(--nav-h, 82px)" }}>
         <PageTransition>
           {children}
         </PageTransition>

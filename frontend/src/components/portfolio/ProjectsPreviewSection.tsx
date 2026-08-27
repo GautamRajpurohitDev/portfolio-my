@@ -31,7 +31,7 @@ export function ProjectsPreviewSection({ projects = [], hideHeader = false }: Pr
 
   return (
     <section
-      className={hideHeader ? "py-12 md:py-20 bg-bg" : "section border-t border-border bg-bg"}
+      className={hideHeader ? "py-16 sm:py-20 md:py-24 bg-bg" : "section border-t border-border bg-bg"}
       id="projects"
       aria-labelledby="projects-heading"
     >
@@ -63,7 +63,7 @@ export function ProjectsPreviewSection({ projects = [], hideHeader = false }: Pr
 
         {/* Project Grid: Clean Semantic Cards */}
         {publishedProjects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
             {publishedProjects.map((project, idx) => (
               <SlideUp key={project._id} delay={0.05 * idx}>
                 <ProjectCard project={project} />
@@ -88,7 +88,7 @@ export function ProjectsPreviewSection({ projects = [], hideHeader = false }: Pr
 
         {/* Mobile all projects link */}
         {!hideHeader && publishedProjects.length > 0 && (
-          <SlideUp delay={0.2} className="mt-10 sm:hidden">
+          <SlideUp delay={0.2} className="mt-12 sm:hidden">
             <Link
               href="/projects"
               className="flex items-center justify-center gap-2 w-full py-3.5 border border-border rounded-xl text-[12px] font-mono font-semibold tracking-widest uppercase text-text-secondary hover:text-text-primary"
@@ -125,34 +125,34 @@ function ProjectCard({ project }: { project: Project }) {
             </span>
           </div>
         )}
-        <div className="absolute top-3 right-3 font-mono text-[10px] tracking-widest uppercase text-text-tertiary bg-bg/90 px-2 py-1 rounded border border-border">
+        <div className="absolute top-3 right-3 font-mono text-[10px] tracking-widest uppercase text-text-tertiary bg-bg/90 px-2.5 py-1 rounded border border-border">
           {statusLabel}
         </div>
       </div>
 
       {/* Body */}
-      <div className="p-6 flex-1 flex flex-col justify-between">
+      <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between">
         <div>
-          <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-mono text-text-tertiary">
+          <div className="flex items-center justify-between gap-2 mb-3 text-[11px] font-mono text-text-tertiary">
             <span>{project.category || "Software"}</span>
             <span>{project.year || "2026"}</span>
           </div>
 
-          <h3 className="font-display font-bold text-xl text-text-primary tracking-tight mb-2">
+          <h3 className="font-display font-bold text-xl sm:text-2xl text-text-primary tracking-tight mb-3">
             {project.title}
           </h3>
 
-          <p className="text-[14px] text-text-secondary leading-relaxed mb-4 line-clamp-3 font-body">
+          <p className="text-[14.5px] text-text-secondary leading-relaxed mb-6 line-clamp-3 font-body">
             {project.shortDescription}
           </p>
 
           {/* Tech stack */}
           {project.technologies && project.technologies.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               {project.technologies.map((tech) => (
                 <span
                   key={tech}
-                  className="font-mono text-[10px] text-text-secondary bg-white/[0.03] border border-border px-2 py-0.5 rounded"
+                  className="font-mono text-[10.5px] text-text-secondary bg-white/[0.03] border border-border px-2.5 py-0.5 rounded"
                 >
                   {tech}
                 </span>
@@ -162,14 +162,14 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
 
         {/* Footer Links */}
-        <div className="pt-4 border-t border-border flex items-center justify-between text-[12px] font-mono">
+        <div className="pt-4 sm:pt-5 border-t border-border flex items-center justify-between text-[12px] font-mono">
           <div className="flex items-center gap-3">
             {project.githubUrl && (
               <a
                 href={project.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-text-secondary hover:text-text-primary flex items-center gap-1 transition-colors"
+                className="text-text-secondary hover:text-text-primary flex items-center gap-1.5 transition-colors"
               >
                 <Github className="w-3.5 h-3.5" />
                 Code
@@ -180,7 +180,7 @@ function ProjectCard({ project }: { project: Project }) {
                 href={project.liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-text-secondary hover:text-text-primary flex items-center gap-1 transition-colors"
+                className="text-text-secondary hover:text-text-primary flex items-center gap-1.5 transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 Demo

@@ -80,10 +80,10 @@ export function AboutSnapshotSection({ config }: AboutSnapshotSectionProps) {
 
         {/* ── METADATA STRIP: CLEAN EDITORIAL GRID ─────────────── */}
         <SlideUp delay={0.25}>
-          <div className="border-t border-border pt-8 grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
+          <div className="border-t border-border pt-10 sm:pt-12 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {metaStrip.map(({ label, value, accent }) => (
               <div key={label} className="flex flex-col">
-                <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary mb-1.5">
+                <span className="font-mono text-[11px] uppercase tracking-widest text-text-tertiary mb-2">
                   {label}
                 </span>
                 <span

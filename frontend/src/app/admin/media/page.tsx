@@ -480,18 +480,18 @@ export default function AdminMediaPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#101010] border border-border/70">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by filename or alt text…"
-            className="w-full h-9 bg-white/[0.02] border border-border/70 rounded-lg pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
+            className="w-full h-9 bg-white/[0.02] border border-border/70 rounded-lg pl-10 pr-3.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 font-body"
           />
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono">
+        <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono sm:pl-1">
           {[
             { id: "all", label: "All" },
             { id: "image", label: "Images" },
@@ -503,7 +503,7 @@ export default function AdminMediaPage() {
               key={tab.id}
               type="button"
               onClick={() => setFilterType(tab.id)}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                 filterType === tab.id
                   ? "bg-primary text-[#090909] font-bold"
                   : "bg-white/[0.02] border border-border/50 text-text-muted hover:text-text-primary"
@@ -519,7 +519,7 @@ export default function AdminMediaPage() {
           <select
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value as SortOption)}
-            className="h-9 bg-white/[0.02] border border-border/70 rounded-lg px-2.5 text-xs font-mono text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+            className="h-9 bg-white/[0.02] border border-border/70 rounded-lg pl-3 pr-7 text-xs font-mono text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>

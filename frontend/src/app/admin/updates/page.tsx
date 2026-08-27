@@ -1,18 +1,23 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { updatesApi } from "@/lib/api";
 import { Update } from "@/types";
-import { Plus, Filter, ChevronDown, Image as ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import Link from "next/link";
-import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import {
+  Plus,
+  Filter,
+  ExternalLink,
+  ChevronDown,
+} from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminButton } from "@/components/admin/ui/AdminButton";
-import { AdminBadge } from "@/components/admin/ui/AdminBadge";
 import { AdminDataTable } from "@/components/admin/ui/AdminDataTable";
+import { AdminBadge } from "@/components/admin/ui/AdminBadge";
+import { AdminButton } from "@/components/admin/ui/AdminButton";
 import { AdminRowActions } from "@/components/admin/ui/AdminRowActions";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 
 export default function AdminUpdatesPage() {
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -20,20 +25,19 @@ export default function AdminUpdatesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  // Delete modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmLoading, setConfirmLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [pendingTitle, setPendingTitle] = useState("");
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const fetchUpdates = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-
     try {
       const res = await updatesApi.getAllAdmin();
       setUpdates(res.data.data || []);
     } catch {
-      toast.error("Failed to fetch updates");
+      toast.error("Failed to load updates");
     } finally {
       setIsLoading(false);
       if (isManualRefresh) setIsRefreshing(false);
@@ -56,7 +60,8 @@ export default function AdminUpdatesPage() {
     try {
       await updatesApi.delete(pendingId);
       toast.success("Update deleted");
-      fetchUpdates();
+      setUpdates((prev) => prev.filter((u) => u._id !== pendingId));
+      setConfirmOpen(false);
     } catch {
       toast.error("Failed to delete update");
     } finally {
@@ -69,14 +74,61 @@ export default function AdminUpdatesPage() {
   const handleTogglePublish = async (u: Update) => {
     try {
       await updatesApi.update(u._id, { published: !u.published });
-      toast.success(u.published ? "Update unpublished" : "Update published");
+      toast.success(u.published ? "Update set to draft" : "Update published live");
       setUpdates((prev) =>
         prev.map((item) =>
           item._id === u._id ? { ...item, published: !item.published } : item
         )
       );
     } catch {
-      toast.error("Failed to update");
+      toast.error("Failed to update status");
+    }
+  };
+
+  const handleDuplicate = async (u: Update) => {
+    try {
+      const copyPayload = {
+        ...u,
+        _id: undefined,
+        title: `${u.title} (Copy)`,
+        published: false,
+      };
+      await updatesApi.create(copyPayload);
+      toast.success("Update duplicated as draft");
+      fetchUpdates(true);
+    } catch {
+      toast.error("Failed to duplicate update");
+    }
+  };
+
+  const handleBulkPublish = async (selected: Update[]) => {
+    try {
+      await Promise.all(selected.map((u) => updatesApi.update(u._id, { published: true })));
+      toast.success(`Published ${selected.length} updates`);
+      fetchUpdates(true);
+    } catch {
+      toast.error("Failed to publish selected updates");
+    }
+  };
+
+  const handleBulkUnpublish = async (selected: Update[]) => {
+    try {
+      await Promise.all(selected.map((u) => updatesApi.update(u._id, { published: false })));
+      toast.success(`Unpublished ${selected.length} updates`);
+      fetchUpdates(true);
+    } catch {
+      toast.error("Failed to unpublish selected updates");
+    }
+  };
+
+  const handleBulkDelete = async (selected: Update[]) => {
+    if (!confirm(`Permanently delete ${selected.length} selected updates?`)) return;
+    try {
+      await Promise.all(selected.map((u) => updatesApi.delete(u._id)));
+      toast.success(`Deleted ${selected.length} updates`);
+      fetchUpdates(true);
+    } catch {
+      toast.error("Failed to delete selected updates");
     }
   };
 
@@ -97,7 +149,7 @@ export default function AdminUpdatesPage() {
           checked={table.getIsAllPageRowsSelected()}
           onChange={table.getToggleAllPageRowsSelectedHandler()}
           aria-label="Select all"
-          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+          className="rounded border-white/[0.2] bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
         />
       ),
       cell: ({ row }) => (
@@ -106,7 +158,7 @@ export default function AdminUpdatesPage() {
           checked={row.getIsSelected()}
           onChange={row.getToggleSelectedHandler()}
           aria-label="Select row"
-          className="rounded border-border/70 bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
+          className="rounded border-white/[0.2] bg-white/5 text-primary accent-primary w-3.5 h-3.5 cursor-pointer"
         />
       ),
       enableSorting: false,
@@ -132,19 +184,19 @@ export default function AdminUpdatesPage() {
         return (
           <div className="flex items-center gap-3 min-w-[220px]">
             {u.coverImage && (
-              <div className="w-8 h-8 rounded-md bg-white/[0.04] border border-border/50 flex-shrink-0 overflow-hidden">
+              <div className="w-8 h-8 rounded-md bg-white/[0.04] border border-white/[0.08] flex-shrink-0 overflow-hidden">
                 <img src={u.coverImage} alt="" className="w-full h-full object-cover" />
               </div>
             )}
             <div className="min-w-0 space-y-0.5">
               <Link
                 href={`/admin/updates/${u._id}/edit`}
-                className="font-clash font-semibold text-text-primary hover:text-primary transition-colors truncate block text-[13px]"
+                className="font-clash font-semibold text-text-primary hover:text-primary transition-colors text-[13px] truncate block"
               >
                 {u.title}
               </Link>
               {u.summary && (
-                <p className="text-[11px] text-text-muted line-clamp-1 leading-tight">
+                <p className="text-[11px] text-text-muted truncate max-w-sm font-body leading-tight">
                   {u.summary}
                 </p>
               )}
@@ -154,30 +206,23 @@ export default function AdminUpdatesPage() {
       },
     },
     {
-      accessorKey: "published",
-      header: "Status",
-      cell: ({ row }) => (
-        <AdminBadge variant={row.original.published ? "published" : "draft"} dot>
-          {row.original.published ? "Published" : "Draft"}
-        </AdminBadge>
-      ),
-    },
-    {
       accessorKey: "tags",
       header: "Tags",
       cell: ({ row }) => {
         const tags = row.original.tags || [];
-        if (tags.length === 0) return <span className="text-text-muted font-mono text-[11px]">—</span>;
         return (
-          <div className="flex flex-wrap gap-1 max-w-xs">
-            {tags.slice(0, 3).map((tag, i) => (
-              <span key={i} className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[10px] font-mono text-text-muted">
-                {tag}
+          <div className="flex items-center gap-1 flex-wrap max-w-[200px]">
+            {tags.slice(0, 2).map((t) => (
+              <span
+                key={t}
+                className="text-[10px] font-mono text-text-secondary bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/[0.06]"
+              >
+                #{t}
               </span>
             ))}
-            {tags.length > 3 && (
-              <span className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[10px] font-mono text-text-muted">
-                +{tags.length - 3}
+            {tags.length > 2 && (
+              <span className="text-[10px] font-mono text-text-muted">
+                +{tags.length - 2}
               </span>
             )}
           </div>
@@ -185,18 +230,13 @@ export default function AdminUpdatesPage() {
       },
     },
     {
-      id: "mediaCount",
-      header: "Media",
-      cell: ({ row }) => {
-        const count = row.original.media?.length || (row.original.coverImage ? 1 : 0);
-        if (count === 0) return <span className="text-text-muted font-mono text-[11px]">—</span>;
-        return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-text-secondary">
-            <ImageIcon size={11} className="text-text-muted" />
-            <span>{count} {count === 1 ? "asset" : "assets"}</span>
-          </span>
-        );
-      },
+      accessorKey: "published",
+      header: "Status",
+      cell: ({ row }) => (
+        <AdminBadge variant={row.original.published ? "published" : "draft"}>
+          {row.original.published ? "LIVE" : "DRAFT"}
+        </AdminBadge>
+      ),
     },
     {
       id: "actions",
@@ -207,9 +247,9 @@ export default function AdminUpdatesPage() {
           <div className="text-right">
             <AdminRowActions
               editHref={`/admin/updates/${u._id}/edit`}
-              previewHref={u.slug ? `/updates/${u.slug}` : undefined}
               isPublished={u.published}
               onTogglePublish={() => handleTogglePublish(u)}
+              onDuplicate={() => handleDuplicate(u)}
               onDelete={() => requestDelete(u._id, u.title)}
             />
           </div>
@@ -221,23 +261,23 @@ export default function AdminUpdatesPage() {
   ], []);
 
   const filterControls = (
-    <div className="relative">
+    <div className="flex items-center gap-2 h-9 px-3 bg-white/[0.02] border border-white/[0.08] rounded-lg hover:border-white/[0.15] focus-within:border-primary/50 transition-colors shrink-0">
       <Filter
         size={12}
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        className="text-text-muted shrink-0 pointer-events-none"
       />
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="appearance-none h-9 bg-white/[0.03] border border-border/70 rounded-lg pl-7.5 pr-7 text-xs font-body text-text-secondary focus:outline-none focus:border-primary/50 [&>option]:bg-[#111] cursor-pointer"
+        className="bg-transparent border-0 p-0 pr-3 text-xs font-body text-text-secondary focus:outline-none appearance-none cursor-pointer [&>option]:bg-[#111] [&>option]:text-text-primary"
       >
-        <option value="all">All Updates</option>
+        <option value="all">All Status</option>
         <option value="published">Published</option>
-        <option value="draft">Drafts</option>
+        <option value="draft">Draft</option>
       </select>
       <ChevronDown
-        size={12}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        size={11}
+        className="text-text-muted shrink-0 pointer-events-none"
       />
     </div>
   );
@@ -247,7 +287,7 @@ export default function AdminUpdatesPage() {
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Delete update?"
+        title="Delete build log update?"
         description={`"${pendingTitle}" will be permanently deleted.`}
         confirmLabel="Delete"
         onConfirm={handleDelete}
@@ -259,7 +299,7 @@ export default function AdminUpdatesPage() {
         eyebrow="02 / CONTENT"
         title="Build Log"
         stats={`${updates.length} Updates · ${updates.filter((u) => u.published).length} Live · ${updates.filter((u) => !u.published).length} Drafts`}
-        description="Public devlogs, software releases, engineering announcements, and milestone briefs."
+        description="Public engineering announcements, changelogs, architecture shifts, and dev milestones."
         actions={
           <Link href="/admin/updates/new">
             <AdminButton variant="primary" icon={<Plus size={15} />}>
@@ -274,17 +314,20 @@ export default function AdminUpdatesPage() {
         columns={columns}
         data={filteredData}
         isLoading={isLoading}
-        searchPlaceholder="Search updates by title, tag…"
+        searchPlaceholder="Search updates by title, summary…"
         filterControls={filterControls}
         enableSelection={true}
+        onBulkPublish={handleBulkPublish}
+        onBulkUnpublish={handleBulkUnpublish}
+        onBulkDelete={handleBulkDelete}
         enableColumnVisibility={true}
         enablePagination={true}
         pageSize={25}
         onRefresh={() => fetchUpdates(true)}
         isRefreshing={isRefreshing}
         emptyTitle="No updates found"
-        emptyDescription="Start your build log. Document what you're working on and ship notes publicly."
-        emptyActionLabel="Write First Update"
+        emptyDescription="Write your first changelog update to publish your building progress."
+        emptyActionLabel="Create Update"
         emptyActionIcon={<Plus size={14} />}
         onEmptyAction={() => {
           window.location.href = "/admin/updates/new";
@@ -292,13 +335,13 @@ export default function AdminUpdatesPage() {
         renderMobileCard={(u) => (
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-[10px] text-text-muted">
-                  {new Date(u.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
-                <AdminBadge variant={u.published ? "published" : "draft"} dot>
-                  {u.published ? "Published" : "Draft"}
+              <div className="flex items-center gap-2">
+                <AdminBadge variant={u.published ? "published" : "draft"}>
+                  {u.published ? "Live" : "Draft"}
                 </AdminBadge>
+                <span className="text-[11px] font-mono text-text-muted">
+                  {new Date(u.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
               </div>
 
               <Link
@@ -308,18 +351,22 @@ export default function AdminUpdatesPage() {
                 {u.title}
               </Link>
 
-              {u.summary && (
-                <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
-                  {u.summary}
-                </p>
+              {u.tags && u.tags.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                  {u.tags.map((t) => (
+                    <span key={t} className="text-[10px] font-mono text-text-muted">
+                      #{t}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
 
             <AdminRowActions
               editHref={`/admin/updates/${u._id}/edit`}
-              previewHref={u.slug ? `/updates/${u.slug}` : undefined}
               isPublished={u.published}
               onTogglePublish={() => handleTogglePublish(u)}
+              onDuplicate={() => handleDuplicate(u)}
               onDelete={() => requestDelete(u._id, u.title)}
             />
           </div>

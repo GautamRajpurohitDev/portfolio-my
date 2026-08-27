@@ -69,44 +69,44 @@ export function AdminTablePagination<TData>({
           type="button"
           onClick={() => table.setPageIndex(0)}
           disabled={!table.getCanPreviousPage()}
-          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
           title="First page"
           aria-label="First page"
         >
-          <ChevronsLeft size={13} />
+          <ChevronsLeft size={13} className="shrink-0" />
         </button>
 
         <button
           type="button"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
-          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
           title="Previous page"
           aria-label="Previous page"
         >
-          <ChevronLeft size={13} />
+          <ChevronLeft size={13} className="shrink-0" />
         </button>
 
         <button
           type="button"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
           title="Next page"
           aria-label="Next page"
         >
-          <ChevronRight size={13} />
+          <ChevronRight size={13} className="shrink-0" />
         </button>
 
         <button
           type="button"
           onClick={() => table.setPageIndex(pageCount - 1)}
           disabled={!table.getCanNextPage()}
-          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+          className="p-1.5 rounded-md border border-border/60 hover:bg-white/[0.06] hover:text-text-primary text-text-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
           title="Last page"
           aria-label="Last page"
         >
-          <ChevronsRight size={13} />
+          <ChevronsRight size={13} className="shrink-0" />
         </button>
       </div>
     </div>

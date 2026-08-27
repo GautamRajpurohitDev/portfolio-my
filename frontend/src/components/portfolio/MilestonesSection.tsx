@@ -25,7 +25,7 @@ export function MilestonesSection({ milestones = [], hideHeader = false }: Miles
 
   return (
     <section
-      className={hideHeader ? "py-12 md:py-20 bg-bg" : "section border-t border-border bg-bg"}
+      className={hideHeader ? "py-16 sm:py-20 md:py-24 bg-bg" : "section border-t border-border bg-bg"}
       id="milestones"
       aria-labelledby="milestones-heading"
     >
@@ -65,7 +65,7 @@ export function MilestonesSection({ milestones = [], hideHeader = false }: Miles
 
               return (
                 <SlideUp key={milestone._id} delay={0.04 * idx}>
-                  <div className="py-6 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-8 items-baseline">
+                  <div className="py-7 sm:py-9 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-8 items-baseline">
                     {/* Status / Category Column */}
                     <div className="md:col-span-3 flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-accent animate-pulse" : isCompleted ? "bg-success" : "bg-text-tertiary"}`} />
@@ -76,7 +76,7 @@ export function MilestonesSection({ milestones = [], hideHeader = false }: Miles
 
                     {/* Content Column */}
                     <div className="md:col-span-9">
-                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 mb-1">
+                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 mb-2">
                         <h3 className="font-display font-bold text-lg sm:text-xl text-text-primary">
                           {milestone.title}
                         </h3>

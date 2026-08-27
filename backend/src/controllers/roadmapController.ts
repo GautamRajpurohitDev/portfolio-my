@@ -3,6 +3,7 @@ import { RoadmapPhase } from "../models/RoadmapPhase";
 import { RoadmapDomain } from "../models/RoadmapDomain";
 import { RoadmapTopic } from "../models/RoadmapTopic";
 import { RoadmapTask } from "../models/RoadmapTask";
+import { Settings } from "../models/Settings";
 
 // ── HELPER ────────────────────────────────────────────────────
 
@@ -43,14 +44,39 @@ export async function getPublicRoadmap(_req: Request, res: Response): Promise<vo
 
 export async function getCurrentFocus(_req: Request, res: Response): Promise<void> {
   try {
-    // First pick in-progress, then up-next as fallback
-    let phase = await RoadmapPhase.findOne({ status: "in-progress", published: true })
-      .sort({ order: 1 })
-      .select("-__v");
+    const settingsDoc = await Settings.findOne({});
+    const cl = settingsDoc?.currentlyLearning;
 
+    let phase: any = null;
+
+    // 1. Explicit reference from Settings
+    if (cl?.currentLearningPhaseId) {
+      try {
+        phase = await RoadmapPhase.findById(cl.currentLearningPhaseId).select("-__v");
+      } catch { /* ignore invalid id */ }
+    }
+
+    // 2. Fallback: Prioritize explicitly in-progress phase
     if (!phase) {
-      phase = await RoadmapPhase.findOne({ status: "up-next", published: true })
-        .sort({ order: 1 })
+      phase = await RoadmapPhase.findOne({ status: "in-progress", published: true })
+        .sort({ order: 1, number: 1 })
+        .select("-__v");
+    }
+
+    // 3. Fallback: check practicing, review, up-next
+    if (!phase) {
+      phase = await RoadmapPhase.findOne({
+        status: { $in: ["practicing", "review", "up-next"] },
+        published: true,
+      })
+        .sort({ order: 1, number: 1 })
+        .select("-__v");
+    }
+
+    // 4. Fallback: get the first published phase
+    if (!phase) {
+      phase = await RoadmapPhase.findOne({ published: true })
+        .sort({ order: 1, number: 1 })
         .select("-__v");
     }
 
@@ -61,30 +87,30 @@ export async function getCurrentFocus(_req: Request, res: Response): Promise<voi
 
     const domains = await RoadmapDomain.find({ phase: phase._id, published: true })
       .sort({ order: 1 })
-      .select("title status progress description -__v");
+      .select("title status progress description");
 
     // Find "up-next" phase for the homepage banner
-    const nextPhase = await RoadmapPhase.findOne({
-      status: "up-next",
-      published: true,
-      order: { $gt: phase.order },
-    })
-      .sort({ order: 1 })
-      .select("title number -__v");
-
-    // Fallback: if no up-next, get the next not-started phase
-    const fallbackNext = nextPhase || await RoadmapPhase.findOne({
-      status: "not-started",
-      published: true,
-      order: { $gt: phase.order },
-    }).sort({ order: 1 }).select("title number -__v");
+    let nextPhase: any = null;
+    if (cl?.nextPhaseId) {
+      try {
+        nextPhase = await RoadmapPhase.findById(cl.nextPhaseId).select("title number subtitle");
+      } catch { /* ignore invalid id */ }
+    }
+    if (!nextPhase) {
+      nextPhase = await RoadmapPhase.findOne({
+        published: true,
+        order: { $gt: phase.order },
+      })
+        .sort({ order: 1, number: 1 })
+        .select("title number subtitle");
+    }
 
     res.json({
       success: true,
       data: {
         phase,
         domains,
-        upNext: fallbackNext ? fallbackNext.title : null,
+        upNext: nextPhase ? nextPhase.title : (cl?.next || null),
       },
     });
   } catch (e: any) {

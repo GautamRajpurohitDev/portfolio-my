@@ -55,9 +55,9 @@ export function AdminButton({
       {isLoading ? (
         <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
       ) : (
-        icon && <span className="shrink-0">{icon}</span>
+        icon && <span className="shrink-0 flex items-center justify-center">{icon}</span>
       )}
-      {children && <span>{children}</span>}
+      {children && <span className="truncate">{children}</span>}
     </button>
   );
 }

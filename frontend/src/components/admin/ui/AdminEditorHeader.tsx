@@ -142,7 +142,7 @@ export function AdminEditorHeader({
             className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border/70 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-body text-text-secondary hover:text-text-primary transition-colors"
           >
             <span>Preview</span>
-            <ExternalLink size={12} />
+            <ExternalLink size={12} className="shrink-0" />
           </a>
         )}
 
@@ -155,7 +155,7 @@ export function AdminEditorHeader({
             className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-border/70 bg-white/[0.03] hover:bg-white/[0.07] text-xs font-medium text-text-primary transition-all disabled:opacity-40 cursor-pointer"
             title="Save as draft (Ctrl+S)"
           >
-            <Save size={13} className="text-text-muted" />
+            <Save size={13} className="text-text-muted shrink-0" />
             <span>Save Draft</span>
           </button>
         )}
@@ -169,9 +169,9 @@ export function AdminEditorHeader({
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-[#090909] text-xs font-clash font-bold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 shadow-xs cursor-pointer"
           >
             {isSubmitting ? (
-              <div className="w-3.5 h-3.5 border-2 border-[#090909] border-t-transparent rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-[#090909] border-t-transparent rounded-full animate-spin shrink-0" />
             ) : (
-              <Globe size={13} strokeWidth={2.5} />
+              <Globe size={13} strokeWidth={2.5} className="shrink-0" />
             )}
             <span>Publish to Live</span>
           </button>
@@ -185,7 +185,7 @@ export function AdminEditorHeader({
             disabled={isSubmitting}
             className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-yellow-500/30 hover:border-yellow-500/60 bg-yellow-500/5 hover:bg-yellow-500/10 text-xs font-medium text-yellow-300 transition-all disabled:opacity-40 cursor-pointer"
           >
-            <EyeOff size={13} />
+            <EyeOff size={13} className="shrink-0" />
             <span>Unpublish</span>
           </button>
         )}
@@ -199,9 +199,9 @@ export function AdminEditorHeader({
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-[#090909] text-xs font-clash font-bold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 shadow-xs cursor-pointer"
           >
             {isSubmitting ? (
-              <div className="w-3.5 h-3.5 border-2 border-[#090909] border-t-transparent rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-[#090909] border-t-transparent rounded-full animate-spin shrink-0" />
             ) : (
-              <Check size={13} strokeWidth={2.5} />
+              <Check size={13} strokeWidth={2.5} className="shrink-0" />
             )}
             <span>Update Live</span>
           </button>

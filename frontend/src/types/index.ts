@@ -166,10 +166,19 @@ export interface Settings {
     timeline: { year: string; title: string; description: string; order: number }[];
   };
   currentlyLearning: {
-    primary: string;
-    primaryDescription: string;
-    next: string;
-    roadmap: string[];
+    currentLearningSkillId?: string | null;
+    currentLearningPhaseId?: string | null;
+    nextPhaseId?:            string | null;
+    primary:                 string;
+    primaryDescription:      string;
+    status?:                 string;
+    progress?:               number;
+    phaseTitle?:             string;
+    phaseNumber?:            number;
+    next:                    string;
+    roadmap:                 string[];
+    displayTitleOverride?:   string;
+    displayDescriptionOverride?: string;
   };
   appearance?: {
     theme: { preset: string; background: string; surface: string; text: string; mutedText: string; accent: string; border: string; };

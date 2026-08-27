@@ -23,49 +23,51 @@ export function AdminPageHeader({
   className,
 }: AdminPageHeaderProps) {
   return (
-    <div
+    <header
       className={cn(
-        "flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/[0.08]",
+        "flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 sm:pb-7 mb-6 sm:mb-8 border-b border-white/[0.08]",
         className
       )}
     >
-      <div className="space-y-2 min-w-0">
+      <div className="space-y-2 min-w-0 flex-1">
         {eyebrow && (
-          <div className="flex items-center gap-2.5">
-            <span className="text-[10.5px] font-mono text-primary font-bold tracking-[0.2em] uppercase">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-primary font-bold tracking-[0.2em] uppercase">
               {eyebrow}
             </span>
             {badge && <span>{badge}</span>}
           </div>
         )}
 
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-clash font-bold text-text-primary tracking-tight uppercase leading-[1.05]">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-clash font-bold text-text-primary tracking-tight uppercase leading-tight">
           {title}
         </h1>
 
         {(description || stats) && (
-          <div className="flex items-center gap-3 text-xs text-text-muted font-body flex-wrap pt-0.5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 text-xs text-text-secondary font-body pt-0.5">
             {stats && (
-              <span className="font-mono text-[11px] font-semibold text-text-secondary tracking-wide uppercase">
+              <span className="font-mono text-[11px] font-semibold text-text-muted tracking-wider uppercase shrink-0">
                 {stats}
               </span>
             )}
-            {stats && description && <span className="text-border/60">·</span>}
+            {stats && description && (
+              <span className="hidden sm:inline text-white/[0.2] font-mono select-none">·</span>
+            )}
             {description && (
-              <span className="text-text-secondary text-sm max-w-2xl leading-relaxed">
+              <p className="text-xs text-text-muted max-w-2xl leading-normal">
                 {description}
-              </span>
+              </p>
             )}
           </div>
         )}
       </div>
 
       {actions && (
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap pt-2 md:pt-0">
           {actions}
         </div>
       )}
-    </div>
+    </header>
   );
 }
 

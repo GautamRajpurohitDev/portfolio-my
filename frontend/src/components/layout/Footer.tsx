@@ -64,7 +64,7 @@ export function Footer({ config }: { config?: any }) {
       <div className="container">
 
         {/* Main footer grid */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 py-20">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 sm:gap-16 py-20 sm:py-24">
 
           {/* Brand */}
           <div className="md:col-span-5">
@@ -89,7 +89,7 @@ export function Footer({ config }: { config?: any }) {
             <div className="md:col-span-4">
               <h3 className="label-meta mb-5">Quick Links</h3>
               <nav aria-label="Footer navigation">
-                <ul className="space-y-2.5">
+                <ul className="space-y-3">
                   {quickLinks.map(({ href, label }) => (
                     <li key={href}>
                       <Link
@@ -143,7 +143,7 @@ export function Footer({ config }: { config?: any }) {
         </div>
 
         {/* Bottom bar */}
-        <div className="py-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="py-8 sm:py-10 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-body-sm text-text-tertiary">
             {copyright}
           </p>

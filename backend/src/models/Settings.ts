@@ -111,7 +111,17 @@ export interface ISettings extends Document {
   };
 
   // Currently learning
-  currentlyLearning: { primary: string; primaryDescription: string; next: string; roadmap: string[] };
+  currentlyLearning: {
+    currentLearningSkillId?: string | null;
+    currentLearningPhaseId?: string | null;
+    nextPhaseId?:            string | null;
+    primary:                 string;
+    primaryDescription:      string;
+    next:                    string;
+    roadmap:                 string[];
+    displayTitleOverride?:   string;
+    displayDescriptionOverride?: string;
+  };
 
   // Social links
   socials: {
@@ -269,10 +279,15 @@ const SettingsSchema = new Schema<ISettings>(
 
     // ── Currently Learning ────────────────────────────────────
     currentlyLearning: {
-      primary:            { type: String, default: "Git & GitHub" },
-      primaryDescription: { type: String, default: "Learning version control from first principles." },
-      next:               { type: String, default: "C Programming" },
-      roadmap:            [{ type: String }],
+      currentLearningSkillId:     { type: Schema.Types.ObjectId, ref: "Skill", default: null },
+      currentLearningPhaseId:     { type: Schema.Types.ObjectId, ref: "RoadmapPhase", default: null },
+      nextPhaseId:                { type: Schema.Types.ObjectId, ref: "RoadmapPhase", default: null },
+      primary:                    { type: String, default: "Git & GitHub" },
+      primaryDescription:         { type: String, default: "Learning version control from first principles." },
+      next:                       { type: String, default: "C Programming" },
+      roadmap:                    [{ type: String }],
+      displayTitleOverride:       { type: String, default: "" },
+      displayDescriptionOverride: { type: String, default: "" },
     },
 
     // ── Socials ───────────────────────────────────────────────

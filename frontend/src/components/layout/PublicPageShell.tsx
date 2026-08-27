@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export interface PublicPageHeaderProps {
   eyebrow?: string;
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
   action?: React.ReactNode;
   className?: string;
@@ -35,21 +35,21 @@ export function PublicPageHeader({
         <div className="max-w-4xl">
           <SlideUp>
             {eyebrow && (
-              <span className="public-page-header-eyebrow">
+              <span className="font-mono text-[11px] sm:text-xs tracking-[0.18em] uppercase text-accent mb-4 sm:mb-5 block">
                 {eyebrow}
               </span>
             )}
             
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4 sm:mb-5">
-              <h1 className="public-page-header-title">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-5 sm:mb-6">
+              <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-text-primary uppercase leading-[0.95]">
                 {title}
               </h1>
 
-              {action && <div className="flex-shrink-0 mb-2">{action}</div>}
+              {action && <div className="flex-shrink-0">{action}</div>}
             </div>
 
             {subtitle && (
-              <p className="public-page-header-subtitle">
+              <p className="text-text-secondary font-body text-base sm:text-lg leading-relaxed max-w-2xl">
                 {subtitle}
               </p>
             )}
