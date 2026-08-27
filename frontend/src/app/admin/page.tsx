@@ -416,10 +416,10 @@ export default function AdminDashboardPage() {
             04 / ACTIVE LEARNING
           </p>
           <p className="text-3xl sm:text-4xl font-clash font-bold text-primary tracking-tight">
-            89%
+            {skillsList.find((s) => s.name?.toLowerCase().includes("git"))?.progress ?? (skillsList.find((s) => s.status === "in-progress")?.progress ?? 89)}%
           </p>
           <p className="text-[11px] font-mono text-text-primary truncate pt-1">
-            Git & GitHub (Phase 00)
+            {skillsList.find((s) => s.name?.toLowerCase().includes("git"))?.name || "Git & GitHub"} (Phase 00)
           </p>
         </div>
       </motion.div>

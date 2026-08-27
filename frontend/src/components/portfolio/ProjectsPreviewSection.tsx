@@ -61,8 +61,20 @@ export function ProjectsPreviewSection({ projects = [], hideHeader = false }: Pr
           </SlideUp>
         )}
 
-        {/* Project Grid: Clean Semantic Cards */}
-        {publishedProjects.length > 0 ? (
+        {/* Project Content: Intelligent Responsive Composition */}
+        {publishedProjects.length === 1 ? (
+          <SlideUp delay={0.05}>
+            <SingleProjectEditorialCard project={publishedProjects[0]} />
+          </SlideUp>
+        ) : publishedProjects.length === 2 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-10">
+            {publishedProjects.map((project, idx) => (
+              <SlideUp key={project._id} delay={0.05 * idx}>
+                <ProjectCard project={project} />
+              </SlideUp>
+            ))}
+          </div>
+        ) : publishedProjects.length > 2 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
             {publishedProjects.map((project, idx) => (
               <SlideUp key={project._id} delay={0.05 * idx}>
