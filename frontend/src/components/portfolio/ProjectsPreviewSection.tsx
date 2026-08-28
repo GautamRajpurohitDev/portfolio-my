@@ -211,3 +211,106 @@ function ProjectCard({ project }: { project: Project }) {
     </div>
   );
 }
+
+function SingleProjectEditorialCard({ project }: { project: Project }) {
+  const hasImage = project.images && project.images.length > 0;
+  const statusLabel = project.status === "in-progress" ? "IN PROGRESS" : project.status.toUpperCase();
+
+  return (
+    <div className="w-full bg-bg-card border border-border rounded-2xl overflow-hidden hover:border-border-hover transition-colors">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 p-6 sm:p-8 lg:p-10 items-center">
+        {/* Left Column: Image/Visual (7 cols) */}
+        <div className="lg:col-span-7">
+          <div className="aspect-[16/10] bg-bg-elevated rounded-xl overflow-hidden relative border border-white/[0.06]">
+            {hasImage ? (
+              <img
+                src={project.images[0].url}
+                alt={project.images[0].alt || project.title}
+                className="w-full h-full object-cover hover:scale-102 transition-transform duration-500"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-bg-elevated p-8">
+                <span className="font-display font-bold text-5xl sm:text-6xl text-text-tertiary/40 uppercase tracking-tighter">
+                  {project.title.slice(0, 3)}
+                </span>
+              </div>
+            )}
+            <div className="absolute top-3.5 right-3.5 font-mono text-[10px] tracking-widest uppercase text-accent bg-bg/95 backdrop-blur-md px-3 py-1 rounded-md border border-border">
+              {statusLabel}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Editorial Details (5 cols) */}
+        <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
+          <div>
+            <div className="flex items-center gap-2 mb-3 text-[11px] font-mono text-accent">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              <span>{project.category || "FEATURED WORK"}</span>
+              <span className="text-text-tertiary">·</span>
+              <span className="text-text-tertiary">{project.year || "2026"}</span>
+            </div>
+
+            <h3 className="font-display font-bold text-2xl sm:text-3xl lg:text-4xl text-text-primary tracking-tight mb-4">
+              {project.title}
+            </h3>
+
+            <p className="text-[15px] sm:text-[16px] text-text-secondary leading-relaxed font-body mb-6">
+              {project.shortDescription}
+            </p>
+
+            {/* Tech stack */}
+            {project.technologies && project.technologies.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {project.technologies.map((tech) => (
+                  <span
+                    key={tech}
+                    className="font-mono text-[11px] text-text-secondary bg-white/[0.03] border border-border px-3 py-1 rounded-md"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Links & CTA */}
+          <div className="pt-5 border-t border-border flex items-center justify-between text-[12px] font-mono">
+            <div className="flex items-center gap-4">
+              {project.githubUrl && (
+                <a
+                  href={project.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-secondary hover:text-text-primary flex items-center gap-1.5 transition-colors"
+                >
+                  <Github className="w-4 h-4" />
+                  Code
+                </a>
+              )}
+              {project.liveUrl && (
+                <a
+                  href={project.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-secondary hover:text-text-primary flex items-center gap-1.5 transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Live System
+                </a>
+              )}
+            </div>
+
+            <Link
+              href={`/projects/${project.slug}`}
+              className="inline-flex items-center gap-1.5 text-accent hover:underline font-semibold"
+            >
+              System Overview <ArrowRight size={13} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

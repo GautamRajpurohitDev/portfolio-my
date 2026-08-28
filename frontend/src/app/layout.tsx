@@ -76,6 +76,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+import { SystemBootLoader } from "@/components/ui/SystemBootLoader";
+
 export default function RootLayout({
   children,
 }: {
@@ -132,6 +134,7 @@ export default function RootLayout({
       <body className="bg-bg text-text-primary font-body antialiased">
         <ThemeProvider>
           <AuthProvider>
+            <SystemBootLoader />
             {children}
           </AuthProvider>
         </ThemeProvider>

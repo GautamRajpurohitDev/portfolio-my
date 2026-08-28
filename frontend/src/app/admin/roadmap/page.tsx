@@ -264,8 +264,8 @@ function PhaseEditorForm({ phase, onSave, saveStatus, hasUnsaved, setHasUnsaved 
       <div className="px-6 pt-5 pb-4 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <span className="text-[10px] font-mono text-primary font-bold tracking-widest uppercase block mb-0.5">
-              PHASE {String(phase.number).padStart(2, "0")} / EDIT
+            <span className="text-[11px] font-mono text-primary font-semibold tracking-wider uppercase block mb-1">
+              Phase {String(phase.number).padStart(2, "0")} / Edit
             </span>
             <h2 className="text-base font-clash font-bold text-text-primary uppercase tracking-tight truncate">
               {phase.title}
@@ -1108,8 +1108,8 @@ export default function AdminRoadmapPage() {
 
         {/* ── Panel 1: Phase List (25% = 3 cols) ──────────── */}
         <div className="lg:col-span-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl overflow-hidden">
-          <div className="px-4 pt-4 pb-3 border-b border-white/[0.05]">
-            <p className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-2">Phases</p>
+          <div className="px-5 pt-4.5 pb-3.5 border-b border-white/[0.05]">
+            <p className="text-[11px] font-mono text-text-muted uppercase tracking-wider mb-2 font-medium">Curriculum Phases</p>
             <input
               placeholder="Search phases…"
               value={search}
@@ -1164,10 +1164,10 @@ export default function AdminRoadmapPage() {
           {selectedPhase ? (
             <>
               {/* Panel header */}
-              <div className="px-4 pt-4 pb-3 border-b border-white/[0.05]">
+              <div className="px-5 pt-4.5 pb-3.5 border-b border-white/[0.05]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-mono text-primary font-bold tracking-widest uppercase">
+                    <p className="text-[11px] font-mono text-primary font-semibold tracking-wider uppercase">
                       Domains & Topics
                     </p>
                     <p className="text-xs text-text-muted mt-0.5 truncate">{selectedPhase.title}</p>

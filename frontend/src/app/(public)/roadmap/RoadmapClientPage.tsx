@@ -182,9 +182,11 @@ function CurriculumPhaseCard({
         onClick={() => setExpanded(!expanded)}
         className="w-full p-6 sm:p-7 flex items-start justify-between gap-6 text-left cursor-pointer"
       >
-        <div className="flex items-start gap-4 sm:gap-6 flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-5 flex-1 min-w-0">
           {/* Phase number */}
-          <span className={`font-mono text-sm font-bold pt-0.5 tabular-nums ${isActive ? "text-accent" : "text-text-tertiary"}`}>
+          <span className={`font-mono text-xs font-bold tabular-nums shrink-0 self-start px-2.5 py-1 rounded-md border ${
+            isActive ? "text-accent bg-accent/10 border-accent/30" : "text-text-tertiary bg-white/[0.03] border-white/[0.08]"
+          }`}>
             PHASE {String(phase.number).padStart(2, "0")}
           </span>
 
@@ -194,7 +196,7 @@ function CurriculumPhaseCard({
                 {phase.title}
               </h2>
               <span className={`text-[10px] font-mono uppercase tracking-widest ${cfg.text}`}>
-                {cfg.shortLabel}
+                ● {cfg.shortLabel}
               </span>
             </div>
 

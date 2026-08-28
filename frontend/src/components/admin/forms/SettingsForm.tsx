@@ -374,8 +374,18 @@ export default function SettingsForm({ settings: s }: Props) {
             <textarea {...register("hero.subtitle")} rows={3} className={textareaCls} placeholder="MCA student focused on building strong programming fundamentals…" />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Field label="Primary CTA Label"><input {...register("hero.ctaPrimary")} className={inputCls} placeholder="View Projects" /></Field>
-            <Field label="Secondary CTA Label"><input {...register("hero.ctaSecondary")} className={inputCls} placeholder="Explore Journey" /></Field>
+            <Field label="Primary CTA Label" hint="e.g. View Projects">
+              <input {...register("hero.ctaPrimary.label")} className={inputCls} placeholder="View Projects" />
+            </Field>
+            <Field label="Primary CTA Link" hint="e.g. /projects">
+              <input {...register("hero.ctaPrimary.href")} className={inputCls} placeholder="/projects" />
+            </Field>
+            <Field label="Secondary CTA Label" hint="e.g. Explore Journey">
+              <input {...register("hero.ctaSecondary.label")} className={inputCls} placeholder="Explore Journey" />
+            </Field>
+            <Field label="Secondary CTA Link" hint="e.g. /journey">
+              <input {...register("hero.ctaSecondary.href")} className={inputCls} placeholder="/journey" />
+            </Field>
           </div>
         </SettingsSection>
 
